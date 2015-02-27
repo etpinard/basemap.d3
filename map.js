@@ -52,6 +52,9 @@ map.makeCalcdata = function makeCalcdata(gd) {
         cdi = new Array(N);
 
         for (var j = 0; j < N; j++) {
+            // don't project calcdata,
+            // as projected calcdata need to be computed
+            // on drag event.
             cdi[j] = {
                 lon: trace.lon[j],
                 lat: trace.lat[j]
@@ -73,7 +76,8 @@ map.plot = function(gd) {
     map.svg.select("g.physical")
         .datum(topojson.feature(map.world, map.world.objects.land))
         .append("path")
-        .attr("d", d3.geo.path().projection(map.projection));
+        .attr("class", "physical")
+        .attr("d", worldPath());
 
     gData = map.svg.select("g.data")
         .selectAll("g.trace")
@@ -92,38 +96,59 @@ map.plot = function(gd) {
               .enter().append("path")
                 .attr("class", "point")
                 .each(function(d) {
-                    var s = d3.select(this),
-                        rs = 10;
-                    // -->  <--
-                    s.attr("transform", "translate("+ d.lon + "," + d.lat + ")");
-                    s.attr("d", 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
-                                'A'+rs+','+rs+' 0 0,1 '+rs+',0Z');
+                    var s = d3.select(this);
+
+                    s.attr("transform", pointTransform);
+                    s.attr("d", pointPath);
                 });
     });
 
 };
 
-map.style = function(world, gd) {
+function worldPath() {
+    return d3.geo.path().projection(map.projection);
+}
 
+function pointTransform(d) {
+    var lonlat = map.projection([d.lon, d.lat]);
+    return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
+}
+
+function pointPath(d) {
+    rs = 10;
+    return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
+           'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
+}
+
+map.style = function(world, gd) {
+    // ...
 };
 
 (function() {
+    var m0,
+        o0;
+
     var drag = d3.behavior.drag()
         .on("dragstart", function() {
-          var rotate = map.projection.rotate();
-          m0 = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
-          o0 = [-rotate[0], 0];
-          console.log('start')
+            var p = map.projection.rotate();
+            m0 = [d3.event.sourceEvent.pageX,
+                d3.event.sourceEvent.pageY];
+            o0 = [-p[0], 0];
+            console.log('drag start')
         })
         .on("drag", function() {
-          if (m0) {
-            var m1 = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY],
+            if (m0) {
+            var m1 = [d3.event.sourceEvent.pageX,
+                      d3.event.sourceEvent.pageY],
                 o1 = [o0[0] + (m0[0] - m1[0]) / 4, 0];
             map.projection.rotate([-o1[0], 0]);
-          }
-          console.log('dragging')
+            }
+            console.log('dragging')
 
-          map.plot(gd);
+            // recompute world path and translate points
+            d3.select("path.physical").attr("d", worldPath());
+            d3.selectAll("path.point").attr("transform", pointTransform);
+
         });
         
     map.svg.call(drag);

@@ -4,12 +4,8 @@ gd.data = [
     {
         type: "map-scatter",
         mode: "markers",
-        lon: [-75, 0, 0],
-        lat: [45, 0, 55],
-        marker: {
-            size: [10, 20, 30],
-            color: ['red', 'blue', 'green']
-        }
+        lon: [-75, 0, 0, -43],
+        lat: [45, 0, 55, -22]
     }
 ];
 

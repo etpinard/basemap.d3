@@ -15,7 +15,7 @@
     stroke-width: 2px;
 }
 
-.data .line {
+.line {
     fill: none;  
     stroke-opacity: .8;  
     stroke-dasharray: 3,2;  
@@ -23,199 +23,22 @@
     stroke: #f44;  
 }
 
-.data .markers {
-    fill: none;  
-    stroke-opacity: .8;  
-    stroke-width: 10px;
-    stroke: #f44;  
+.point {
+    fill: rgb(255, 0, 0);  
 }
 
 </style>
 <body>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="./gd.js"></script>
+<script src="./map.js"></script>
 <script>
-
-var gd = {};
-
-gd.data = [
-    {
-        type: "map-scatter",
-        mode: "markers",
-        lon: [10, 20, 100],
-        lat: [-10, 20, 50],
-        marker: {
-            size: [10, 20, 30],
-            color: ['red', 'blue', 'green']
-        }
-    }
-];
-
-gd.layout = {
-    width: 960,
-    height: 960,
-    map: {
-        projection: {
-            type: 'mercator',
-            center: [0, 0],
-            rotate: [0, 0, 0],
-            scope: 'globe'
-        },
-        coastlines: { }
-    }
-};
-
-// -------------------------------------------------------------------------------
-
-gd.calcdata = (function getCalcdata(traces) {
-    var Ntraces = traces.length,
-        cd = new Array(Ntraces),
-        trace,
-        N,
-        cdi,
-        i,
-        j;
-
-    for (var i = 0; i < Ntraces; i++) {
-        trace = traces[i];
-        N = Math.min(trace.lon.length, trace.lat.length);
-        cdi = new Array(N);
-
-        for (var j = 0; j < N; j++) {
-            cdi[j] = {
-                mode: trace.mode,
-                lon: trace.lon[j],
-                lat: trace.lat[j],
-                ms: trace.marker.size[j],
-                mc: trace.marker.color[j]
-            };
-        }
-
-        cd[i] = cdi;
-    }
-
-    return cd;
-}(gd.data));
-
-
-// -------------------------------------------------------------------------------
-
-var Map = {};
-
-Map.projection = (function makeProjection(layout) {
-    var proj = layout.map.projection,
-        width = layout.width,
-        height = layout.height,
-        projType = proj.type,
-        projScope = proj.scope,
-        projScale = (width + 1) / 2 / Math.PI;
-
-    return d3.geo[projType]()
-        .scale(projScale)
-        .translate([width / 2, height / 2])
-        .precision(0.1)
-        .center(proj.center)
-        .rotate(proj.rotate);
-}(gd.layout));
-
-Map.path = d3.geo.path()
-    .projection(Map.projection);
-
-Map.pathLine = d3.svg.line()
-    .interpolate("cardinal")  
-    .x(function(d) { return Map.projection([d.lon, d.lat])[0]; })  
-    .y(function(d) { return Map.projection([d.lon, d.lat])[1]; });  
-
-Map.drag = d3.behavior.drag()
-    .on("dragstart", function() {
-        var rotate = Map.projection.rotate();
-        m0 = [d3.event.sourceEvent.pageX,
-              d3.event.sourceEvent.pageY];
-        o0 = [-rotate[0], 0];
-    })
-    .on("drag", function() {
-        if (m0) {
-            var m1 = [d3.event.sourceEvent.pageX,
-                      d3.event.sourceEvent.pageY],
-                o1 = [o0[0] + (m0[0] - m1[0]) / 4, 0];
-            Map.projection.rotate([-o1[0], 0]);
-        }
-        d3.selectAll("path")
-          .attr("d", Map.path);
-    });
-
-// -------------------------------------------------------------------------------
-
-// var graticule = d3.geo.graticule();
-// svg.select("g.graticule")
-//     .datum(graticule)
-//     .append("path")
-//     .attr("d", path);
-
-// -------------------------------------------------------------------------------
-
-Map.svg = (function makeSVG(l) {
-    var svg = d3.select("body").append("svg")
-        .attr("width", l.width)
-        .attr("height", l.height);
-
-    svg.append("g")
-        .classed("graticule", true);
-
-    svg.append("g")
-        .classed("physical", true);
-
-    svg.append("g")
-        .classed("cultural", true);
-
-    svg.append("g")
-        .classed("data", true);
-
-   return svg;
-}(gd.layout));
-
-
-Map.plot = function(world, gd) {
-    var traces = gd.calcdata,
-        trace,
-        traceMode,
-        dataNode,
-        traceNode;
-
-    Map.svg.select("g.physical")
-        .datum(topojson.feature(world, world.objects.land))
-        .append("path")
-        .attr("d", Map.path);
-
-    var dataNode = Map.svg.select("g.data");
-
-    for (var i = 0; i < traces.length; i++) {
-        trace = traces[i];
-        traceMode = trace[0].mode;
-        traceNode = dataNode
-                        .append("g")
-                        .classed(traceMode, true);
-
-        if (traceMode === 'lines') {
-            traceNode
-                .append("path")
-                .attr("d", Map.pathLine(trace));
-        } else if (traceMode === 'markers') {
-            traceNode
-                .append("circle")
-                .attr("r", trace[0].ms)
-        }
-    
-    }
-
-
-}
-
 d3.json("world-110m.json", function(error, world) {
 
-    Map.plot(world, gd);
-    Map.svg.call(Map.drag);
+    map.world = world;
+    map.makeCalcdata(gd);
+    map.plot(gd);
 
 });
-
 </script>

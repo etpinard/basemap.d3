@@ -14,11 +14,17 @@ gd.layout = {
     height: 960,
     map: {
         projection: {
-            type: 'mercator',
+            type: 'equirectangular',
             center: [0, 0],
             rotate: [0, 0, 0],
             scope: 'globe'
         },
-        coastlines: { }
+        basemap: {
+            showcoastlines: true,
+            showland: true,
+            showoceans: true,
+            showcountries: true,
+            showsubunits: true
+        }
     }
 };

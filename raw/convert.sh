@@ -26,14 +26,12 @@ for i in ${vectors[@]}; do
     unzip $i 
 done
 
-coastlines="ne_110m_coastline/ne_110m_coastline"
-
 topojson \
     -o $out \
     -- \
     countries=${vectors[0]}.shp \
     states_provinces=${vectors[1]}.shp \
-    coastline=${vectors[2]}.shp \
+    coastlines=${vectors[2]}.shp \
     land=${vectors[3]}.shp \
     ocean=${vectors[4]}.shp
 

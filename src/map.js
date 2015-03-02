@@ -5,25 +5,19 @@ map.makeProjection = function makeProjection(gd) {
         width = fullLayout.width,
         height = fullLayout.height,
         proj = fullLayout.map.projection,
-        projType = proj.type,
-        projScope = proj.scope,
-        projScale = (width + 1) / 2 / Math.PI,
         out;
     
-    out = d3.geo[projType]()
-        .scale(projScale)
+    out = d3.geo[proj.type]()
+        .scale(proj.scale)
         .translate([width / 2, height / 2])
         .precision(0.1)
+//         .clipExtent([[0, 0], [width/2 , height/2]])
         .center(proj.center)
         .rotate(proj.rotate);
 
-    if (fullLayout._isOrthographic) doExtraOrthographic();
+    if (proj.parallels) out.parallels(proj.parallels);
 
-    function doExtraOrthographic() {
-        out
-            .scale(250)
-            .clipAngle(90);
-    }
+    if (fullLayout._isOrthographic) out.clipAngle(90);
 
     return out;
 };
@@ -47,6 +41,19 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     fullLayout = layout;
 
     fullLayout._isOrthographic = (projection.type === 'orthographic');
+
+    function getScale() {
+        if (projection.type === 'orthographic') return 250;
+        else return (layout.width + 1) / 2 / Math.PI;
+    }
+
+// 
+//     function getExtent() {
+//     }
+
+    fullLayout.map.projection.scale = getScale();
+
+    if (!('parallels' in projection)) fullLayout.map.projection.parallels = false;
 
     gd._fullLayout = fullLayout;
 
@@ -83,7 +90,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
 };
 
 map.makeSVG = function makeSVG(gd) {
-    var isOrthographic = gd._fullLayout._isOrthographic;
+    var fullLayout = gd._fullLayout,
+        isOrthographic = fullLayout._isOrthographic;
 
     var svg = d3.select("body").append("svg")
         .attr("width", gd.layout.width)
@@ -100,7 +108,6 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("data", true);
 
-
     function doExtraOrthographic() {
         svg.append("defs").append("path")
             .datum({type: "Sphere"})
@@ -116,41 +123,64 @@ map.makeSVG = function makeSVG(gd) {
             .attr("xlink:href", "#sphere");
     }
 
-    // attach events to svg
-    var m0,
-        o0;
+    // recompute world path and translate points
+    function reDraw() {
+        d3.selectAll("g.baselayer path")
+            .attr("d", map.worldPath());
+        d3.select("path.graticule")
+            .attr("d", map.worldPath());
+        d3.selectAll("path.point")
+            .attr("transform", map.pointTransform);
+    }
+
+    var m0,  // variables for dragging
+        o0,
+        t0;
 
     var drag = d3.behavior.drag()
         .on("dragstart", function() {
-            var p = map.projection.rotate();
-            m0 = [d3.event.sourceEvent.pageX,
-                d3.event.sourceEvent.pageY];
-
-            // non-orthographic projections get only longitudinal panning
-            o0 = isOrthographic ? [-p[0], -p[1]] : [-p[0], 0];
+            var p = map.projection.rotate(),
+                t = map.projection.translate();
             console.log('drag start');
+            m0 = [d3.event.sourceEvent.pageX,
+                  d3.event.sourceEvent.pageY];
+            o0 = [-p[0], -p[1]];
+            t0 = [t[0], t[1]];
         })
         .on("drag", function() {
             if (m0) {
-            var m1 = [d3.event.sourceEvent.pageX,
-                      d3.event.sourceEvent.pageY],
-                o1 = [o0[0] + (m0[0] - m1[0]) / 4,
-                      o0[1] + (m1[1] - m0[1]) / 4];
-                newRotate = isOrthographic ? [-o1[0], -o1[1]] : [-o1[0], 0];
-            map.projection.rotate(newRotate);
-            console.log('dragging');
+                var m1 = [d3.event.sourceEvent.pageX,
+                          d3.event.sourceEvent.pageY],
+                    o1 = [o0[0] + (m0[0] - m1[0]) / 4,
+                          o0[1] + (m1[1] - m0[1]) / 4],
+                    t1 = [t0[0] + (m0[0] - m1[0]),
+                          t0[1] + (m1[1] - m0[1])];
+                console.log('dragging');
+                if (isOrthographic) {
+                    // orthographic projections are panned by rotation
+                    map.projection.rotate([-o1[0], -o1[1]]);
+                } else {
+                    // orthographic projections are panned by rotation along lon
+                    // and by translation along lat
+                    map.projection.rotate([-o1[0], -o0[1]]);
+                    map.projection.translate([t0[0], t1[1]]);
+                }
+                reDraw();
             }
+        });
 
-            // recompute world path and translate points
-            d3.selectAll("g.baselayer path")
-                .attr("d", map.worldPath());
-            d3.select("path.graticule")
-                .attr("d", map.worldPath());
-            d3.selectAll("path.point")
-                .attr("transform", map.pointTransform);
+    var zoom = d3.behavior.zoom()
+        .scale(fullLayout.map.projection.scale)
+        .scaleExtent([100, 1000])
+        .on("zoom", function() {
+            console.log('zooming');
+            map.projection.scale(d3.event.scale);
+            reDraw();
         });
         
-    svg.call(drag);
+    svg
+        .call(drag)
+        .call(zoom);
 
     return svg;
 };

@@ -5,7 +5,19 @@ gd.data = [
         type: "map-scatter",
         mode: "markers",
         lon: [-75, 0, 0, -43],
-        lat: [45, 0, 55, -22]
+        lat: [45, 0, 55, -22],
+        marker: {
+            color: 'rgb(255, 0, 0)'
+        }
+    },
+    {
+        type: "map-scatter",
+        mode: "markers",
+        lon: [-122, -15],
+        lat: [37, 28],
+        marker: {
+            color: 'rgb(0, 255, 255)'
+        }
     }
 ];
 
@@ -31,7 +43,7 @@ gd.layout = {
             landwidth: 2,
             landfill: "#CCFFCC",
             //
-            showocean: true,
+            showocean: false,
             oceancolor: "none",
             oceanwidth: 0,
             oceanfill: "#3399FF",
@@ -48,6 +60,5 @@ gd.layout = {
     lataxis: {
         range: [] 
     }
-
     
 };

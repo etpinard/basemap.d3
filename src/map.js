@@ -24,7 +24,7 @@ map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
         fullData = [];
 
-    fullData = data;  // should be a coerce
+    fullData = data;  // (shortcut) should coerce instead
 
     gd._fullData = fullData;
 };
@@ -34,7 +34,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         projection = layout.map.projection;
         fullLayout = {};
 
-    fullLayout = layout;  // should be a coerce
+    fullLayout = layout;  // (shortcut) should coerce instead
 
     fullLayout._isOrthographic = (projection.type === 'orthographic');
 
@@ -55,8 +55,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     if (!('parallels' in projection)) fullLayout.map.projection.parallels = false;
 
     gd._fullLayout = fullLayout;
-
-    map.projection = map.makeProjection(gd);  // ...
 };
 
 map.makeCalcdata = function makeCalcdata(gd) {
@@ -97,23 +95,22 @@ map.makeSVG = function makeSVG(gd) {
         .attr("width", gd.layout.width)
         .attr("height", gd.layout.height);
 
-    function doExtraOrthographic() {
-        svg.append("g")
-            .classed("sphere", true);
-
-        svg.select("g.sphere")
-            .append("path")
-            .datum({type: "Sphere"})
-            .attr("class", "sphere");
-    }
-    if (isOrthographic) doExtraOrthographic();
-
     svg.append("g")
         .classed("basemap", true);
 
     // TODO should be a per-axis attribute
     svg.append("g")
         .classed("graticule", true);
+
+    function doExtraOrthographic() {
+        svg.append("g")
+            .classed("sphere", true);
+        svg.select("g.sphere")
+            .append("path")
+            .datum({type: "Sphere"})
+            .attr("class", "sphere");
+    }
+    if (isOrthographic) doExtraOrthographic();
 
     svg.append("g")
         .classed("data", true);
@@ -180,7 +177,6 @@ map.makeSVG = function makeSVG(gd) {
    return svg;
 };
 
-
 map.init = function init(gd) {
     var world = map.world,
         cd = gd.calcdata,
@@ -216,14 +212,12 @@ map.init = function init(gd) {
         .selectAll("g.trace")
         .data(cd)
       .enter().append("g")
-        .attr("class", "trace");
-
-    gData.append("g")
+        .attr("class", "trace")
+      .append("g")
         .attr("class", "points")
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
-
             s.selectAll("path.point")
                 .data(Object)
               .enter().append("path")
@@ -284,6 +278,7 @@ map.plot = function plot(gd) {
 
         map.supplyDefaults(gd);
         map.supplyLayoutDefaults(gd);
+        map.projection = map.makeProjection(gd);
         map.makeCalcdata(gd);
 
         map.init(gd);
@@ -304,5 +299,14 @@ map.style = function(gd) {
                 .attr("stroke", basemap[layer + 'color'])
                 .attr("fill",  basemap[layer + 'fill'])
                 .attr("stroke-width", basemap[layer + 'width']);
+        });
+
+    d3.selectAll("g.points")
+        .each(function(d) {
+            var s = d3.select(this),
+                trace = d[0].trace;
+            console.log(trace.marker.color)
+            s.selectAll("path.point")
+                .attr("fill", trace.marker.color);
         });
 };

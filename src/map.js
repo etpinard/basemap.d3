@@ -93,7 +93,16 @@ map.drawPaths = function drawPaths(gd) {
     if (isOrthographic) {
         d3.select("path.sphere")
             .attr("d", map.worldPath());
+        // hide paths over the edge
+        d3.selectAll("path.point")
+            .attr("opacity", function(d) {
+                var p = map.projection.rotate(),
+                    geoangle = d3.geo.distance([d.lon, d.lat],
+                                               [-p[0], -p[1]]);
+                return (geoangle > Math.PI / 2) ? "0" : "1.0";
+            });
     }
+
     d3.selectAll("g.baselayer path")
         .attr("d", map.worldPath());
     d3.select("path.graticule")
@@ -157,7 +166,8 @@ map.makeSVG = function makeSVG(gd) {
                     // orthographic projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
                 } else {
-                    // orthographic projections are panned by rotation along lon
+                    // orthographic projections are panned
+                    // by rotation along lon
                     // and by translation along lat
                     map.projection.rotate([-o1[0], -o0[1]]);
                     map.projection.translate([t0[0], t1[1]]);
@@ -210,8 +220,7 @@ map.init = function init(gd) {
                                     world.objects[layer]))
             .attr("class", "baselayer")
             .append("path")
-            .attr("class", layer)
-            .attr("d", map.worldPath());
+            .attr("class", layer);
     }
     map.baseLayers.forEach(plotBaseLayer);
 
@@ -244,7 +253,6 @@ map.init = function init(gd) {
     });
 
     map.drawPaths(gd);
-
 };
 
 map.worldPath = function worldPath() {

@@ -14,10 +14,11 @@ gd.layout = {
     height: 960,
     map: {
         projection: {
-            type: 'equirectangular',
+            type: 'orthographic',
             center: [0, 0],
             rotate: [0, 0, 0],
-            scope: 'globe'
+//             parallels: [0, 62],
+            scope: 'globe',
         },
         basemap: {
             showcoastlines: true,
@@ -26,5 +27,13 @@ gd.layout = {
             showcountries: true,
             showsubunits: true
         }
+    },
+    lonaxis: {
+        range: [] 
+    },
+    lataxis: {
+        range: [] 
     }
+
+    
 };

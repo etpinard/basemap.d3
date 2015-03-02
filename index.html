@@ -8,16 +8,6 @@
 <script src="src/map.js"></script>
 <script>
 
-d3.json("raw/world-110m.json", function(error, world) {
-
-    map.world = world;
-
-    map.supplyDefaults(gd);
-    map.supplyLayoutDefaults(gd);
-    map.makeCalcdata(gd);
-
-    map.plot(gd);
-
-});
+map.plot(gd);
 
 </script>

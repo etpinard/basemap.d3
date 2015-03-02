@@ -1,11 +1,7 @@
-.sphere-stroke {
+.sphere {
     fill: none;
     stroke: #000;
-    stroke-width: 3px;
-}
-
-.sphere-fill {
-    fill: #fff;
+    stroke-width: 5px;
 }
 
 .ocean {

@@ -5,7 +5,19 @@ gd.data = [
         type: "map-scatter",
         mode: "markers",
         lon: [-75, 0, 0, -43],
-        lat: [45, 0, 55, -22]
+        lat: [45, 0, 55, -22],
+        marker: {
+            color: 'rgb(255, 0, 0)'
+        }
+    },
+    {
+        type: "map-scatter",
+        mode: "lines",
+        lon: [-122, -15],
+        lat: [37, 28],
+        marker: {
+            color: 'rgb(0, 255, 255)'
+        }
     }
 ];
 
@@ -16,16 +28,30 @@ gd.layout = {
         projection: {
             type: 'orthographic',
             center: [0, 0],
-            rotate: [0, 0, 0],
+            rotate: [-60, 20, 0],
 //             parallels: [0, 62],
             scope: 'globe',
         },
         basemap: {
-            showcoastlines: true,
+            showcoastlines: false,
+            coastlinescolor: "#aaa",
+            coastlineswidth: 2,
+            coastlinesfill: "none",
+            //
             showland: true,
-            showoceans: true,
+            landcolor: "#aaa",
+            landwidth: 2,
+            landfill: "#CCFFCC",
+            //
+            showocean: false,
+            oceancolor: "none",
+            oceanwidth: 0,
+            oceanfill: "#3399FF",
+            //
             showcountries: true,
-            showsubunits: true
+            countriescolor: "#aaa",
+            countrieswidth: 1,
+            countriesfill: "none"
         }
     },
     lonaxis: {
@@ -34,6 +60,5 @@ gd.layout = {
     lataxis: {
         range: [] 
     }
-
     
 };

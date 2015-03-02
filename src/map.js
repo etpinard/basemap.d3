@@ -2,18 +2,16 @@ var map = {};
 
 map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
-        width = fullLayout.width,
-        height = fullLayout.height,
         proj = fullLayout.map.projection,
         out;
     
     out = d3.geo[proj.type]()
-        .scale(proj.scale)
-        .translate([width / 2, height / 2])
+        .scale(proj._scale)
+        .translate(proj._translate)
         .precision(0.1)
 //         .clipExtent([[0, 0], [width/2 , height/2]])
         .center(proj.center)
-        .rotate(proj.rotate);
+        .rotate(proj._rotate);
 
     if (proj.parallels) out.parallels(proj.parallels);
 
@@ -26,7 +24,7 @@ map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
         fullData = [];
 
-    fullData = data;  // should be a coerce
+    fullData = data;  // (shortcut) should coerce instead
 
     gd._fullData = fullData;
 };
@@ -36,7 +34,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         projection = layout.map.projection;
         fullLayout = {};
 
-    fullLayout = layout;  // should be a coerce
+    fullLayout = layout;  // (shortcut) should coerce instead
 
     fullLayout._isOrthographic = (projection.type === 'orthographic');
 
@@ -45,17 +43,21 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         else return (layout.width + 1) / 2 / Math.PI;
     }
 
+    fullLayout.map.projection._translate = [layout.width / 2,
+                                            layout.height / 2];
+
+    fullLayout.map.projection._rotate = [-projection.rotate[0],
+                                         -projection.rotate[1]]
+
 // 
 //     function getExtent() {
 //     }
 
-    fullLayout.map.projection.scale = getScale();
+    fullLayout.map.projection._scale = getScale();
 
     if (!('parallels' in projection)) fullLayout.map.projection.parallels = false;
 
     gd._fullLayout = fullLayout;
-
-    map.projection = map.makeProjection(gd);  // ...
 };
 
 map.makeCalcdata = function makeCalcdata(gd) {
@@ -87,54 +89,31 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
-map.drawPaths = function drawPaths(gd) {
-    var isOrthographic = fullLayout._isOrthographic;
-
-    if (isOrthographic) {
-        d3.select("path.sphere")
-            .attr("d", map.worldPath());
-        // hide paths over the edge
-        d3.selectAll("path.point")
-            .attr("opacity", function(d) {
-                var p = map.projection.rotate(),
-                    geoangle = d3.geo.distance([d.lon, d.lat],
-                                               [-p[0], -p[1]]);
-                return (geoangle > Math.PI / 2) ? "0" : "1.0";
-            });
-    }
-
-    d3.selectAll("g.baselayer path")
-        .attr("d", map.worldPath());
-    d3.select("path.graticule")
-        .attr("d", map.worldPath());
-    d3.selectAll("path.point")
-        .attr("transform", map.pointTransform);
-};
-
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
+        proj = fullLayout.map.projection,
         isOrthographic = fullLayout._isOrthographic;
 
     var svg = d3.select("body").append("svg")
         .attr("width", gd.layout.width)
         .attr("height", gd.layout.height);
 
+    svg.append("g")
+        .classed("basemap", true);
+
+    // TODO should be a per-axis attribute
+    svg.append("g")
+        .classed("graticule", true);
+
     function doExtraOrthographic() {
         svg.append("g")
             .classed("sphere", true);
-
         svg.select("g.sphere")
             .append("path")
             .datum({type: "Sphere"})
             .attr("class", "sphere");
     }
     if (isOrthographic) doExtraOrthographic();
-
-    svg.append("g")
-        .classed("basemap", true);
-
-    svg.append("g")
-        .classed("graticule", true);
 
     svg.append("g")
         .classed("data", true);
@@ -177,7 +156,7 @@ map.makeSVG = function makeSVG(gd) {
         });
 
     var zoom = d3.behavior.zoom()
-        .scale(fullLayout.map.projection.scale)
+        .scale(fullLayout.map.projection._scale)
         .scaleExtent([100, 1000])
         .on("zoom", function() {
             console.log('zooming');
@@ -201,26 +180,28 @@ map.makeSVG = function makeSVG(gd) {
    return svg;
 };
 
-
 map.init = function init(gd) {
     var world = map.world,
         cd = gd.calcdata,
+        fullLayout = gd._fullLayout,
         gData;
 
+    // TODO add support for subunits
     map.baseLayers = ['ocean', 'land',
-                      'states_provinces', 'countries',
-                      'coastlines'];
+                      'countries', 'coastlines'];
 
     map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(layer) {
-        map.svg.select("g.basemap")
-            .append("g")
-            .datum(topojson.feature(world,
-                                    world.objects[layer]))
-            .attr("class", "baselayer")
-            .append("path")
-            .attr("class", layer);
+        if (fullLayout.map.basemap['show' + layer]===true) {
+            map.svg.select("g.basemap")
+              .append("g")
+                .datum(topojson.feature(world,
+                                        world.objects[layer]))
+                .attr("class", "baselayer")
+              .append("path")
+                .attr("class", layer);
+        }
     }
     map.baseLayers.forEach(plotBaseLayer);
 
@@ -241,7 +222,6 @@ map.init = function init(gd) {
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
-
             s.selectAll("path.point")
                 .data(Object)
               .enter().append("path")
@@ -250,9 +230,35 @@ map.init = function init(gd) {
                     var s = d3.select(this);
                     s.attr("d", map.pointPath);
                 });
-    });
+        });
+
+    gData.append
 
     map.drawPaths(gd);
+};
+
+map.drawPaths = function drawPaths(gd) {
+    var isOrthographic = fullLayout._isOrthographic;
+
+    if (isOrthographic) {
+        d3.select("path.sphere")
+            .attr("d", map.worldPath());
+        // hide paths over the edge
+        d3.selectAll("path.point")
+            .attr("opacity", function(d) {
+                var p = map.projection.rotate(),
+                    geoangle = d3.geo.distance([d.lon, d.lat],
+                                               [-p[0], -p[1]]);
+                return (geoangle > Math.PI / 2) ? "0" : "1.0";
+            });
+    }
+
+    d3.selectAll("g.baselayer path")
+        .attr("d", map.worldPath());
+    d3.select("path.graticule")
+        .attr("d", map.worldPath());
+    d3.selectAll("path.point")
+        .attr("transform", map.pointTransform);
 };
 
 map.worldPath = function worldPath() {
@@ -278,15 +284,35 @@ map.plot = function plot(gd) {
 
         map.supplyDefaults(gd);
         map.supplyLayoutDefaults(gd);
+        map.projection = map.makeProjection(gd);
         map.makeCalcdata(gd);
 
         map.init(gd);
         map.drawPaths(gd);
+        map.style(gd);
 
     });
 
 };
 
-map.style = function(world, gd) {
-    // ...
+map.style = function(gd) {
+    var basemap = gd._fullLayout.map.basemap;
+
+    d3.selectAll("g.baselayer path")
+        .each(function(d) {
+            var layer = this.classList[0];
+            d3.select(this)
+                .attr("stroke", basemap[layer + 'color'])
+                .attr("fill",  basemap[layer + 'fill'])
+                .attr("stroke-width", basemap[layer + 'width']);
+        });
+
+    d3.selectAll("g.points")
+        .each(function(d) {
+            var s = d3.select(this),
+                trace = d[0].trace;
+            console.log(trace.marker.color)
+            s.selectAll("path.point")
+                .attr("fill", trace.marker.color);
+        });
 };

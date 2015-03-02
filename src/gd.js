@@ -14,7 +14,7 @@ gd.layout = {
     height: 960,
     map: {
         projection: {
-            type: 'orthographic',
+            type: 'equirectangular',
             center: [0, 0],
             rotate: [0, 0, 0],
             scope: 'globe'

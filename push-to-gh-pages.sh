@@ -1,7 +1,8 @@
 #! /bin/bash
 
-git checkout gd-pages
+git checkout gh-pages
 git merge master
 git add --all
 git commit -m "push to gh-pages"
+git push
 git checkout master

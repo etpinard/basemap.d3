@@ -21,11 +21,25 @@ gd.layout = {
             scope: 'globe',
         },
         basemap: {
-            showcoastlines: true,
+            showcoastlines: false,
+            coastlinescolor: "#aaa",
+            coastlineswidth: 2,
+            coastlinesfill: "none",
+            //
             showland: true,
-            showoceans: true,
+            landcolor: "#aaa",
+            landwidth: 2,
+            landfill: "#CCFFCC",
+            //
+            showocean: true,
+            oceancolor: "none",
+            oceanwidth: 0,
+            oceanfill: "#3399FF",
+            //
             showcountries: true,
-            showsubunits: true
+            countriescolor: "#aaa",
+            countrieswidth: 1,
+            countriesfill: "none"
         }
     },
     lonaxis: {

@@ -5,24 +5,12 @@
 }
 
 .ocean {
-    fill: #ccccff;
-}
-
-.land {
-    fill: #ccc;
-    stroke: #000;
 }
 
 .coastlines {
-    fill: none;
-    stroke: #669900;
-    stroke-width: 2px;
 }
 
 .countries {
-    fill: none;
-    stroke: #fff;
-    stroke-width: 1px;
 }
 
 .states_provinces {

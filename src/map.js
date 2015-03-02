@@ -87,32 +87,9 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
-map.drawPaths = function drawPaths(gd) {
-    var isOrthographic = fullLayout._isOrthographic;
-
-    if (isOrthographic) {
-        d3.select("path.sphere")
-            .attr("d", map.worldPath());
-        // hide paths over the edge
-        d3.selectAll("path.point")
-            .attr("opacity", function(d) {
-                var p = map.projection.rotate(),
-                    geoangle = d3.geo.distance([d.lon, d.lat],
-                                               [-p[0], -p[1]]);
-                return (geoangle > Math.PI / 2) ? "0" : "1.0";
-            });
-    }
-
-    d3.selectAll("g.baselayer path")
-        .attr("d", map.worldPath());
-    d3.select("path.graticule")
-        .attr("d", map.worldPath());
-    d3.selectAll("path.point")
-        .attr("transform", map.pointTransform);
-};
-
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
+        proj = fullLayout.map.projection,
         isOrthographic = fullLayout._isOrthographic;
 
     var svg = d3.select("body").append("svg")
@@ -133,6 +110,7 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("basemap", true);
 
+    // TODO should be a per-axis attribute
     svg.append("g")
         .classed("graticule", true);
 
@@ -205,22 +183,25 @@ map.makeSVG = function makeSVG(gd) {
 map.init = function init(gd) {
     var world = map.world,
         cd = gd.calcdata,
+        fullLayout = gd._fullLayout,
         gData;
 
+    // TODO add support for subunits
     map.baseLayers = ['ocean', 'land',
-                      'states_provinces', 'countries',
-                      'coastlines'];
+                      'countries', 'coastlines'];
 
     map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(layer) {
-        map.svg.select("g.basemap")
-            .append("g")
-            .datum(topojson.feature(world,
-                                    world.objects[layer]))
-            .attr("class", "baselayer")
-            .append("path")
-            .attr("class", layer);
+        if (fullLayout.map.basemap['show' + layer]===true) {
+            map.svg.select("g.basemap")
+              .append("g")
+                .datum(topojson.feature(world,
+                                        world.objects[layer]))
+                .attr("class", "baselayer")
+              .append("path")
+                .attr("class", layer);
+        }
     }
     map.baseLayers.forEach(plotBaseLayer);
 
@@ -255,6 +236,30 @@ map.init = function init(gd) {
     map.drawPaths(gd);
 };
 
+map.drawPaths = function drawPaths(gd) {
+    var isOrthographic = fullLayout._isOrthographic;
+
+    if (isOrthographic) {
+        d3.select("path.sphere")
+            .attr("d", map.worldPath());
+        // hide paths over the edge
+        d3.selectAll("path.point")
+            .attr("opacity", function(d) {
+                var p = map.projection.rotate(),
+                    geoangle = d3.geo.distance([d.lon, d.lat],
+                                               [-p[0], -p[1]]);
+                return (geoangle > Math.PI / 2) ? "0" : "1.0";
+            });
+    }
+
+    d3.selectAll("g.baselayer path")
+        .attr("d", map.worldPath());
+    d3.select("path.graticule")
+        .attr("d", map.worldPath());
+    d3.selectAll("path.point")
+        .attr("transform", map.pointTransform);
+};
+
 map.worldPath = function worldPath() {
     return d3.geo.path().projection(map.projection);
 };
@@ -282,11 +287,21 @@ map.plot = function plot(gd) {
 
         map.init(gd);
         map.drawPaths(gd);
+        map.style(gd);
 
     });
 
 };
 
-map.style = function(world, gd) {
-    // ...
+map.style = function(gd) {
+    var basemap = gd._fullLayout.map.basemap;
+
+    d3.selectAll("g.baselayer path")
+        .each(function(d) {
+            var layer = this.classList[0];
+            d3.select(this)
+                .attr("stroke", basemap[layer + 'color'])
+                .attr("fill",  basemap[layer + 'fill'])
+                .attr("stroke-width", basemap[layer + 'width']);
+        })
 };

@@ -109,22 +109,22 @@ map.makeSVG = function makeSVG(gd) {
         .classed("data", true);
 
     function doExtraOrthographic() {
-        svg.append("defs").append("path")
-            .datum({type: "Sphere"})
-            .attr("id", "sphere")
-            .attr("d", map.worldPath());
-        
-        svg.append("use")
-            .attr("class", "sphere-stroke")
-            .attr("xlink:href", "#sphere");
+        svg.append("g")
+            .classed("sphere", true)
 
-        svg.append("use")
-            .attr("class", "sphere-fill")
-            .attr("xlink:href", "#sphere");
+        svg.select("g.sphere")
+            .append("path")
+            .datum({type: "Sphere"})
+            .attr("class", "sphere")
+            .attr("d", map.worldPath());
     }
 
     // recompute world path and translate points
     function reDraw() {
+        if (isOrthographic) {
+            d3.select("path.sphere")
+                .attr("d", map.worldPath());
+        }
         d3.selectAll("g.baselayer path")
             .attr("d", map.worldPath());
         d3.select("path.graticule")
@@ -177,10 +177,20 @@ map.makeSVG = function makeSVG(gd) {
             map.projection.scale(d3.event.scale);
             reDraw();
         });
+
+    var dblclick = function() {
+        console.log('double clicking');
+        map.projection = map.makeProjection(gd);
+        console.log(gd._fullLayout.map.projection.scale)
+        reDraw();
+    };
         
     svg
         .call(drag)
-        .call(zoom);
+        .call(zoom)
+        .on("click.zoom", null)
+        .on("dblclick.zoom", null)
+        .on("dblclick", dblclick);
 
     return svg;
 };

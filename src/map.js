@@ -2,14 +2,12 @@ var map = {};
 
 map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
-        width = fullLayout.width,
-        height = fullLayout.height,
         proj = fullLayout.map.projection,
         out;
     
     out = d3.geo[proj.type]()
-        .scale(proj.scale)
-        .translate([width / 2, height / 2])
+        .scale(proj._scale)
+        .translate(proj._translate)
         .precision(0.1)
 //         .clipExtent([[0, 0], [width/2 , height/2]])
         .center(proj.center)
@@ -45,11 +43,14 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         else return (layout.width + 1) / 2 / Math.PI;
     }
 
+    fullLayout.map.projection._translate = [layout.width / 2,
+                                            layout.height / 2];
+
 // 
 //     function getExtent() {
 //     }
 
-    fullLayout.map.projection.scale = getScale();
+    fullLayout.map.projection._scale = getScale();
 
     if (!('parallels' in projection)) fullLayout.map.projection.parallels = false;
 
@@ -155,7 +156,7 @@ map.makeSVG = function makeSVG(gd) {
         });
 
     var zoom = d3.behavior.zoom()
-        .scale(fullLayout.map.projection.scale)
+        .scale(fullLayout.map.projection._scale)
         .scaleExtent([100, 1000])
         .on("zoom", function() {
             console.log('zooming');
@@ -303,5 +304,5 @@ map.style = function(gd) {
                 .attr("stroke", basemap[layer + 'color'])
                 .attr("fill",  basemap[layer + 'fill'])
                 .attr("stroke-width", basemap[layer + 'width']);
-        })
+        });
 };

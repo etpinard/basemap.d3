@@ -12,7 +12,7 @@ gd.data = [
     },
     {
         type: "map-scatter",
-        mode: "markers",
+        mode: "lines",
         lon: [-122, -15],
         lat: [37, 28],
         marker: {
@@ -28,7 +28,7 @@ gd.layout = {
         projection: {
             type: 'orthographic',
             center: [0, 0],
-            rotate: [0, 0, 0],
+            rotate: [-60, 20, 0],
 //             parallels: [0, 62],
             scope: 'globe',
         },

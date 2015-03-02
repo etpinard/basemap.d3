@@ -11,7 +11,7 @@ map.makeProjection = function makeProjection(gd) {
         .precision(0.1)
 //         .clipExtent([[0, 0], [width/2 , height/2]])
         .center(proj.center)
-        .rotate(proj.rotate);
+        .rotate(proj._rotate);
 
     if (proj.parallels) out.parallels(proj.parallels);
 
@@ -45,6 +45,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     fullLayout.map.projection._translate = [layout.width / 2,
                                             layout.height / 2];
+
+    fullLayout.map.projection._rotate = [-projection.rotate[0],
+                                         -projection.rotate[1]]
 
 // 
 //     function getExtent() {
@@ -212,8 +215,9 @@ map.init = function init(gd) {
         .selectAll("g.trace")
         .data(cd)
       .enter().append("g")
-        .attr("class", "trace")
-      .append("g")
+        .attr("class", "trace");
+
+    gData.append("g")
         .attr("class", "points")
         .each(function(d) {
             var s = d3.select(this),
@@ -226,7 +230,9 @@ map.init = function init(gd) {
                     var s = d3.select(this);
                     s.attr("d", map.pointPath);
                 });
-    });
+        });
+
+    gData.append
 
     map.drawPaths(gd);
 };

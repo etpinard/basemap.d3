@@ -26,8 +26,7 @@ map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
         fullData = [];
 
-    // ...
-    fullData = data;
+    fullData = data;  // should be a coerce
 
     gd._fullData = fullData;
 };
@@ -37,8 +36,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         projection = layout.map.projection;
         fullLayout = {};
 
-    // ...
-    fullLayout = layout;
+    fullLayout = layout;  // should be a coerce
 
     fullLayout._isOrthographic = (projection.type === 'orthographic');
 
@@ -89,6 +87,21 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
+map.drawPaths = function drawPaths(gd) {
+    var isOrthographic = fullLayout._isOrthographic;
+
+    if (isOrthographic) {
+        d3.select("path.sphere")
+            .attr("d", map.worldPath());
+    }
+    d3.selectAll("g.baselayer path")
+        .attr("d", map.worldPath());
+    d3.select("path.graticule")
+        .attr("d", map.worldPath());
+    d3.selectAll("path.point")
+        .attr("transform", map.pointTransform);
+};
+
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         isOrthographic = fullLayout._isOrthographic;
@@ -97,6 +110,15 @@ map.makeSVG = function makeSVG(gd) {
         .attr("width", gd.layout.width)
         .attr("height", gd.layout.height);
 
+    function doExtraOrthographic() {
+        svg.append("g")
+            .classed("sphere", true);
+
+        svg.select("g.sphere")
+            .append("path")
+            .datum({type: "Sphere"})
+            .attr("class", "sphere");
+    }
     if (isOrthographic) doExtraOrthographic();
 
     svg.append("g")
@@ -107,31 +129,6 @@ map.makeSVG = function makeSVG(gd) {
 
     svg.append("g")
         .classed("data", true);
-
-    function doExtraOrthographic() {
-        svg.append("g")
-            .classed("sphere", true)
-
-        svg.select("g.sphere")
-            .append("path")
-            .datum({type: "Sphere"})
-            .attr("class", "sphere")
-            .attr("d", map.worldPath());
-    }
-
-    // recompute world path and translate points
-    function reDraw() {
-        if (isOrthographic) {
-            d3.select("path.sphere")
-                .attr("d", map.worldPath());
-        }
-        d3.selectAll("g.baselayer path")
-            .attr("d", map.worldPath());
-        d3.select("path.graticule")
-            .attr("d", map.worldPath());
-        d3.selectAll("path.point")
-            .attr("transform", map.pointTransform);
-    }
 
     var m0,  // variables for dragging
         o0,
@@ -165,7 +162,7 @@ map.makeSVG = function makeSVG(gd) {
                     map.projection.rotate([-o1[0], -o0[1]]);
                     map.projection.translate([t0[0], t1[1]]);
                 }
-                reDraw();
+                map.drawPaths();
             }
         });
 
@@ -175,14 +172,13 @@ map.makeSVG = function makeSVG(gd) {
         .on("zoom", function() {
             console.log('zooming');
             map.projection.scale(d3.event.scale);
-            reDraw();
+            map.drawPaths();
         });
 
     var dblclick = function() {
         console.log('double clicking');
         map.projection = map.makeProjection(gd);
-        console.log(gd._fullLayout.map.projection.scale)
-        reDraw();
+        map.drawPaths();
     };
         
     svg
@@ -192,10 +188,11 @@ map.makeSVG = function makeSVG(gd) {
         .on("dblclick.zoom", null)
         .on("dblclick", dblclick);
 
-    return svg;
+   return svg;
 };
 
-map.plot = function(gd) {
+
+map.init = function init(gd) {
     var world = map.world,
         cd = gd.calcdata,
         gData;
@@ -204,7 +201,7 @@ map.plot = function(gd) {
                       'states_provinces', 'countries',
                       'coastlines'];
 
-    map.svg = map.makeSVG(gd);  // ...
+    map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(layer) {
         map.svg.select("g.basemap")
@@ -242,11 +239,11 @@ map.plot = function(gd) {
                 .attr("class", "point")
                 .each(function(d) {
                     var s = d3.select(this);
-
-                    s.attr("transform", map.pointTransform);
                     s.attr("d", map.pointPath);
                 });
     });
+
+    map.drawPaths(gd);
 
 };
 
@@ -263,6 +260,23 @@ map.pointPath = function pointPath(d) {
     rs = 10;
     return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
            'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
+};
+
+map.plot = function plot(gd) {
+
+    d3.json("raw/world-110m.json", function(error, world) {
+
+        map.world = world;
+
+        map.supplyDefaults(gd);
+        map.supplyLayoutDefaults(gd);
+        map.makeCalcdata(gd);
+
+        map.init(gd);
+        map.drawPaths(gd);
+
+    });
+
 };
 
 map.style = function(world, gd) {

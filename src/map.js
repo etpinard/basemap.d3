@@ -127,6 +127,7 @@ map.makeSVG = function makeSVG(gd) {
             var p = map.projection.rotate(),
                 t = map.projection.translate();
             console.log('drag start');
+        console.log(map.projection.scale());
             m0 = [d3.event.sourceEvent.pageX,
                   d3.event.sourceEvent.pageY];
             o0 = [-p[0], -p[1]];
@@ -141,6 +142,7 @@ map.makeSVG = function makeSVG(gd) {
                     t1 = [t0[0] + (m0[0] - m1[0]),
                           t0[1] + (m1[1] - m0[1])];
                 console.log('dragging');
+        console.log(map.projection.scale());
                 if (isOrthographic) {
                     // orthographic projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
@@ -160,13 +162,18 @@ map.makeSVG = function makeSVG(gd) {
         .scaleExtent([100, 1000])
         .on("zoom", function() {
             console.log('zooming');
+        console.log(map.projection.scale());
             map.projection.scale(d3.event.scale);
             map.drawPaths();
         });
 
     var dblclick = function() {
+        // TODO fix bug zoom 
+        // -> dblclick -> translate start at last zoomed in position
         console.log('double clicking');
+        console.log(map.projection.scale());
         map.projection = map.makeProjection(gd);
+        console.log(map.projection.scale());
         map.drawPaths();
     };
         
@@ -217,22 +224,45 @@ map.init = function init(gd) {
       .enter().append("g")
         .attr("class", "trace");
 
+    // lines
+    var lineCoords = []
+    gData.append("path")
+        .each(function(d, i) {
+            var s = d3.select(this),
+                trace = d[0].trace;
+
+            if (trace.mode !== 'lines') s.remove();
+            else {
+                s.attr("class", "js-line");
+                lineCoords.push({
+                    type: "LineString",
+                    coordinates: d.map(function(cd) { return [cd.lon, cd.lat]; }),
+                    trace: trace
+                });
+            }
+        });
+    gData.selectAll("path.js-line")
+        .data(lineCoords)
+
+    // markers
     gData.append("g")
         .attr("class", "points")
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
-            s.selectAll("path.point")
-                .data(Object)
-              .enter().append("path")
-                .attr("class", "point")
-                .each(function(d) {
-                    var s = d3.select(this);
-                    s.attr("d", map.pointPath);
-                });
-        });
 
-    gData.append
+            if (trace.mode !== 'markers') s.remove();
+            else {
+                s.selectAll("path.point")
+                    .data(Object)
+                  .enter().append("path")
+                    .attr("class", "point")
+                    .each(function(d) {
+                        var s = d3.select(this);
+                        s.attr("d", map.pointPath);
+                    });
+            }
+        });
 
     map.drawPaths(gd);
 };
@@ -256,6 +286,8 @@ map.drawPaths = function drawPaths(gd) {
     d3.selectAll("g.baselayer path")
         .attr("d", map.worldPath());
     d3.select("path.graticule")
+        .attr("d", map.worldPath());
+    d3.selectAll("path.js-line")
         .attr("d", map.worldPath());
     d3.selectAll("path.point")
         .attr("transform", map.pointTransform);
@@ -307,11 +339,18 @@ map.style = function(gd) {
                 .attr("stroke-width", basemap[layer + 'width']);
         });
 
+    d3.selectAll("g.trace path.js-line")
+        .each(function(d) {
+            var s = d3.select(this),
+                line = d.trace.line;
+            s.attr("stroke", line.color)
+             .attr("stroke-width", line.width);
+        });
+
     d3.selectAll("g.points")
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
-            console.log(trace.marker.color)
             s.selectAll("path.point")
                 .attr("fill", trace.marker.color);
         });

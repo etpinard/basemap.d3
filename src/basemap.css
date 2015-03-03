@@ -26,7 +26,8 @@
     stroke-opacity: .5;
 }
 
-.line {
+.js-line {
+    fill: none;
 }
 
 .point {

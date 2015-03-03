@@ -7,15 +7,17 @@ See example at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basema
 
 ### Current features
 
-- Scatter points in (lon, lat) coordintates on top of a basemap
+- Scatter points and great circle paths in (lon, lat) coordintates on top of a basemap
 - Periodic panning
-- Zoom and pan
-- Basemap of coastlines, land, ocean, countries, USA states
+- Zoom and pan, double clicking bring back to original position
+- Basemap of coastlines, land, ocean, countries
 
 ### TODO list
 
-- Support line between points
-- Support choropleths
+- Support choropleth
+- Support for administrative subunits
+- Fix zoom bug
+- Add customizable range and scope
 - ...
 
 ## Running it locally

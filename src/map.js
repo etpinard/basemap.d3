@@ -108,7 +108,23 @@ map.makeCalcdata = function makeCalcdata(gd) {
                 cdi[0].coordinates[j] = [trace.lon[j], trace.lat[j]];
             }
         } else if (map.isChoropleth(trace)) {
-            cdi = [{}];
+            var features = topojson.feature(map.world,
+                                            map.world.objects.countries)
+                                            .features;
+            N = trace.loc.length;
+            cdi = new Array(N);
+
+            // TODO jsperf
+            var ids = features.map(function(a) { return a.properties.id; }),
+                indexOfId;
+
+            for (j = 0; j < N; j++) {
+                indexOfId = ids.indexOf(trace.loc[j]);
+                if (indexOfId===-1) continue;
+                cdi[j] = features[indexOfId];
+                cdi[j].z = trace.z[j];
+            }
+
         }
 
         cdi[0].trace = trace;
@@ -157,7 +173,7 @@ map.makeSVG = function makeSVG(gd) {
             var p = map.projection.rotate(),
                 t = map.projection.translate();
             console.log('drag start');
-        console.log(map.projection.scale());
+            console.log(map.projection.scale());
             m0 = [d3.event.sourceEvent.pageX,
                   d3.event.sourceEvent.pageY];
             o0 = [-p[0], -p[1]];
@@ -172,7 +188,7 @@ map.makeSVG = function makeSVG(gd) {
                     t1 = [t0[0] + (m0[0] - m1[0]),
                           t0[1] + (m1[1] - m0[1])];
                 console.log('dragging');
-        console.log(map.projection.scale());
+                console.log(map.projection.scale());
                 if (isOrthographic) {
                     // orthographic projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
@@ -192,7 +208,7 @@ map.makeSVG = function makeSVG(gd) {
         .scaleExtent([100, 1000])
         .on("zoom", function() {
             console.log('zooming');
-        console.log(map.projection.scale());
+            console.log(map.projection.scale());
             map.projection.scale(d3.event.scale);
             map.drawPaths();
         });
@@ -230,7 +246,7 @@ map.init = function init(gd) {
     map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(layer) {
-        if (fullLayout.map.basemap['show' + layer]===true) {
+        if (fullLayout.map['show' + layer]===true) {
             map.svg.select("g.basemap")
               .append("g")
                 .datum(topojson.feature(world,
@@ -253,6 +269,26 @@ map.init = function init(gd) {
         .data(cd)
       .enter().append("g")
         .attr("class", "trace");
+
+    // choropleth
+    gData.append("g")
+        .attr("class", "choropleth")
+        .each(function(d) {
+            var s = d3.select(this),
+                trace = d[0].trace;
+
+            if (!map.isChoropleth(trace)) s.remove();
+            else {
+                s.selectAll("path.regions")
+                    .data(Object)
+                .enter().append("path")
+                  .attr("class", "region")
+                  .each(function(d) {
+                      var s = d3.select(this);
+                      s.attr("d", map.pointPath);
+                  });
+            }
+        });
 
     // lines
     gData.append("path")
@@ -300,15 +336,17 @@ map.drawPaths = function drawPaths(gd) {
         d3.selectAll("path.point")
             .attr("opacity", function(d) {
                 var p = map.projection.rotate(),
-                    geoangle = d3.geo.distance([d.lon, d.lat],
-                                               [-p[0], -p[1]]);
-                return (geoangle > Math.PI / 2) ? "0" : "1.0";
+                    angle = d3.geo.distance([d.lon, d.lat],
+                                            [-p[0], -p[1]]);
+                return (angle > Math.PI / 2) ? "0" : "1.0";
             });
     }
 
     d3.selectAll("g.baselayer path")
         .attr("d", map.worldPath());
     d3.select("path.graticule")
+        .attr("d", map.worldPath());
+    d3.selectAll("path.region")
         .attr("d", map.worldPath());
     d3.selectAll("path.js-line")
         .attr("d", map.worldPath());
@@ -351,15 +389,33 @@ map.plot = function plot(gd) {
 };
 
 map.style = function(gd) {
-    var basemap = gd._fullLayout.map.basemap;
+    var mapObj = gd._fullLayout.map;
 
     d3.selectAll("g.baselayer path")
         .each(function(d) {
             var layer = this.classList[0];
             d3.select(this)
-                .attr("stroke", basemap[layer + 'color'])
-                .attr("fill",  basemap[layer + 'fill'])
-                .attr("stroke-width", basemap[layer + 'width']);
+                .attr("stroke", mapObj[layer + 'color'])
+                .attr("fill",  mapObj[layer + 'fill'])
+                .attr("stroke-width", mapObj[layer + 'width']);
+        });
+
+    var color = d3.scale.log()
+        .range(["hsl(62,100%,90%)", "hsl(228,30%,20%)"])
+        .interpolate(d3.interpolateHcl);
+
+    d3.selectAll("g.choropleth")
+        .each(function(d) {
+            var s = d3.select(this),
+                trace = d[0].trace;
+
+            color.domain([d3.quantile(trace.z, 0.01),  // TODO generalize
+                          d3.quantile(trace.z, 0.99)]);
+            s.selectAll("path.region")
+                .each(function(d) {
+                    var s  = d3.select(this);
+                    s.attr("fill", function(d) { return color(d.z); });
+                });
         });
 
     d3.selectAll("g.trace path.js-line")

@@ -19,6 +19,11 @@ gd.data = [
             color: 'rgb(0, 255, 255)',
             width: 5
         }
+    },
+    {
+        type: "choropleth",
+        loc: ["CAN", "USA"],
+        z: [30, 20]
     }
 ];
 

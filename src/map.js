@@ -47,7 +47,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
                                             layout.height / 2];
 
     fullLayout.map.projection._rotate = [-projection.rotate[0],
-                                         -projection.rotate[1]]
+                                         -projection.rotate[1]];
 
 // 
 //     function getExtent() {
@@ -60,25 +60,55 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     gd._fullLayout = fullLayout;
 };
 
+map.isScatterMarkers = function(trace) {
+    return (trace.type === "map-scatter" && trace.mode === 'markers');
+};
+
+map.isScatterLines = function(trace) {
+    return (trace.type === "map-scatter" && trace.mode === 'lines');
+};
+
+map.isChoropleth = function(trace) {
+    return (trace.type === "choropleth");
+};
+
 map.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
         cd = new Array(fullData.length),
         N,
-        cdi;
+        cdi,
+        i,
+        j;
 
-    for (var i = 0; i < fullData.length; i++) {
+    for (i = 0; i < fullData.length; i++) {
         trace = fullData[i];
-        N = Math.min(trace.lon.length, trace.lat.length);
-        cdi = new Array(N);
 
-        for (var j = 0; j < N; j++) {
-            // don't project calcdata,
-            // as projected calcdata need to be computed
-            // on drag event.
-            cdi[j] = {
-                lon: trace.lon[j],
-                lat: trace.lat[j]
-            };
+        // don't project calcdata,
+        // as projected calcdata need to be computed
+        // on drag event.
+
+        if (map.isScatterMarkers(trace)) {
+            N = Math.min(trace.lon.length, trace.lat.length);
+            cdi = new Array(N);
+
+            for (j = 0; j < N; j++) {
+                cdi[j] = {
+                    lon: trace.lon[j],
+                    lat: trace.lat[j]
+                };
+            }
+        } else if (map.isScatterLines(trace)) {
+            N = Math.min(trace.lon.length, trace.lat.length);
+            cdi = [{
+                type: "LineString",
+                coordinates: new Array(N)
+            }];
+
+            for (j = 0; j < N; j++) {
+                cdi[0].coordinates[j] = [trace.lon[j], trace.lat[j]];
+            }
+        } else if (map.isChoropleth(trace)) {
+            cdi = [{}];
         }
 
         cdi[0].trace = trace;
@@ -225,24 +255,17 @@ map.init = function init(gd) {
         .attr("class", "trace");
 
     // lines
-    var lineCoords = []
     gData.append("path")
-        .each(function(d, i) {
+        .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            if (trace.mode !== 'lines') s.remove();
+            if (!map.isScatterLines(trace)) s.remove();
             else {
-                s.attr("class", "js-line");
-                lineCoords.push({
-                    type: "LineString",
-                    coordinates: d.map(function(cd) { return [cd.lon, cd.lat]; }),
-                    trace: trace
-                });
+                s.datum(d[0])
+                 .attr("class", "js-line");
             }
         });
-    gData.selectAll("path.js-line")
-        .data(lineCoords)
 
     // markers
     gData.append("g")
@@ -251,7 +274,7 @@ map.init = function init(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            if (trace.mode !== 'markers') s.remove();
+            if (!map.isScatterMarkers(trace)) s.remove();
             else {
                 s.selectAll("path.point")
                     .data(Object)

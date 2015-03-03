@@ -8,16 +8,19 @@ See example at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basema
 ### Current features
 
 - Scatter points and great circle paths in (lon, lat) coordintates on top of a basemap
+- Choropleth of countries
 - Periodic panning
 - Zoom and pan, double clicking bring back to original position
 - Basemap of coastlines, land, ocean, countries
 
 ### TODO list
 
-- Support choropleth
 - Support for administrative subunits
 - Fix zoom bug
 - Add customizable range and scope
+- Handle choropleth with stroke color and width (with gd.data or with gd.layout?)
+- Handle grid (i.e. graticules) per axis
+- Generalize choropleth color scale
 - ...
 
 ## Running it locally

@@ -30,6 +30,9 @@ exts=(
 )
 
 wget_dir="./natural_earth"
+if [ ! -d "$wget_dir" ]; then
+    mkdir $wget_dir
+fi
 
 out="world-${resolution}.json"
 
@@ -38,6 +41,7 @@ out="world-${resolution}.json"
 case "$1" in
 
     wget)
+
         cd $wget_dir
         for v in ${physical_vectors[@]}; do
             f="${fileprefix}${resolution}_${v}.zip"
@@ -57,21 +61,30 @@ case "$1" in
         cd $wget_dir
 
         for v in ${vectors[@]}; do
-            ls *$v*.zip
             if [ ! -f *$v*.shp ]; then
                 unzip "*$v*.zip"
             fi
         done
 
+        # Get shapefile properties and format them into topojson
+        rm -f countries.json
+        ogr2ogr \
+            -f GeoJSON \
+            countries.json \
+            ${fileprefix}${resolution}_${cultural_vectors[0]}.shp
+
+        # Combine layer into one topojson
         # N.B. requires also .shx
+        rm -f ../$out
         topojson \
-            -o $out \
+            -o ../$out \
+            coastlines=${fileprefix}${resolution}_${physical_vectors[0]}.shp \
+            land=${fileprefix}${resolution}_${physical_vectors[1]}.shp \
+            ocean=${fileprefix}${resolution}_${physical_vectors[2]}.shp \
+            --properties id=adm0_a3 \
+            --properties name=name \
             -- \
-            coastlines=${fileprefix}${resolution}_${vectors[0]}.shp \
-            land=${fileprefix}${resolution}_${vectors[1]}.shp \
-            ocean=${fileprefix}${resolution}_${vectors[2]}.shp \
-            countries=${fileprefix}${resolution}_${vectors[3]}.shp \
-            states_provinces=${fileprefix}${resolution}_${vectors[4]}.shp
+            countries.json
        ;;
 
     clean)

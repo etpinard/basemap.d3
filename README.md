@@ -12,16 +12,22 @@ See example at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basema
 - Periodic panning
 - Zoom and pan, double clicking bring back to original position
 - Basemap of coastlines, land, ocean, countries
+- Customizable lon/lat axis ranges
 
 ### TODO list
 
-- Support for administrative subunits
+- Support for administrative subunits!
 - Fix zoom bug
-- Add customizable range and scope
-- Handle choropleth with stroke color and width (with gd.data or with gd.layout?)
+- Add customizable scope (on the topojson itself before plotting!)
+- Implement finer resolutions
+- Handle choropleth with stroke color and width (set in data inherited, from layout)
 - Handle grid (i.e. graticules) per axis
-- Generalize choropleth color scale
 - ...
+
+### Unanswered questions
+
+- How to handle marker point? As SVG paths translated onto the map or as
+  topojson coordinates projected into `<circle>` or `<rect>` elements.
 
 ## Running it locally
 

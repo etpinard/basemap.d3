@@ -19,10 +19,11 @@ gd.data = [
     {
         type: "map-scatter",
         mode: "markers",
-        lon: [-75],
-        lat: [45],
+        lon: [-75, 100, 43],
+        lat: [45, 0, -12],
         marker: {
-            color: 'rgb(255, 0, 0)'
+            color: 'rgb(255,0,0)',
+            size: 20
         }
     }
 ];
@@ -34,7 +35,7 @@ gd.layout = {
         projection: {
             type: 'equirectangular',
             center: [0, 0],  // acts like svg translate (how to use this?)
-            rotate: [-60, 0],
+            rotate: [180, 0],
 //             parallels: [0, 62],  // for certain projections
             scope: 'globe'
         },
@@ -60,12 +61,11 @@ gd.layout = {
         countriesfill: "none",
         //
         lonaxis: {
-            range: [-170, 160],
-//             range: 'auto', 
+            range: [0, 180],
             bounds: []
         },
         lataxis: {
-            range: [-90, 90],
+            range: [0, 70],
             bounds: []
         }
     }

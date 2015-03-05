@@ -28,20 +28,14 @@ map.makeProjection = function makeProjection(gd) {
             lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
             lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
 
-            projObj._lonExtent = [lon1 - lon0];
-
-        // TODO Move this in supplyLayoutDefaults
-
         // limit lon range to [leftLim, rightLim] with lon0 < lon1
-
-        // TODO for lat !!
+        // TODO same for lat !!
 
         return [projection([lon0, latRange[1]]),
                 projection([lon1, latRange[0]])];
     }
-
-    if (lonaxisObj.range!=='auto' &&
-            lataxisObj!=='auto') projection.clipExtent(getClipExtent());
+    if (lonaxisObj.range &&
+            lataxisObj.range) projection.clipExtent(getClipExtent());
 
     return projection;
 };
@@ -98,7 +92,6 @@ map.hasScatterMarkers = function(trace) {
 map.hasScatterLines = function(trace) {
     return (trace.type === "map-scatter" && trace.mode.indexOf('lines')!==-1);
 };
-
 
 map.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
@@ -279,8 +272,7 @@ map.init = function init(gd) {
     map.svg.select("g.graticule")
         .append("path")
         .datum(d3.geo.graticule())
-        .attr("class", "graticule")
-        .attr("d", map.getPath());
+        .attr("class", "graticule");
 
     gData = map.svg.select("g.data")
         .selectAll("g.trace")
@@ -326,60 +318,43 @@ map.init = function init(gd) {
 
             if (!map.hasScatterMarkers(trace)) s.remove();
             else {
+                s.datum(map.makePoints(d))
                 s.selectAll("path.point")
                     .data(Object)
-                  .enter().append("path")
-                    .attr("class", "point")
-                    .each(function(d) {
-                        var s = d3.select(this);
-                            s.datum(map.makePoint(d))
-                    });
+                  .enter().append("path") 
+                    .attr("class", "point");
             }
         });
 
-    map.drawPaths(gd);
+    map.drawPaths(gd);  // draw the paths1
 };
 
-map.drawPaths = function drawPaths(gd) {
-    var isOrthographic = fullLayout._isOrthographic;
+map.drawPaths = function drawPaths() {
+    var path = d3.geo.path().projection(map.projection);
 
-    if (isOrthographic) {
-        d3.select("path.sphere")
-            .attr("d", map.getPath());
-        // hide paths over the edge
-        d3.selectAll("path.point")
-            .attr("opacity", function(d) {
-                var p = map.projection.rotate(),
-                    angle = d3.geo.distance([d.lon, d.lat],
-                                            [-p[0], -p[1]]);
-                return (angle > Math.PI / 2) ? "0" : "1.0";
-            });
+    // update the paths with the current projection!
+    d3.selectAll("g path")
+        .attr("d", path.pointRadius(25));
+};
+
+map.makePoints = function makePoints(d) {
+    var N =  d.length,
+        points = new Array(N),
+        di;
+
+    // Major drawback: we won't be able to use Plotly.Drawing symbols.
+    // But, we don't have to handle hiding point translated out of map
+    // on pan / zoom.
+
+    for (var i = 0; i < N; i++) {
+        di = d[i];
+        points[i] = {
+            type: "Point",
+            coordinates: [di.lon, di.lat]
+        }
     }
-
-    d3.selectAll("g.baselayer path")
-        .attr("d", map.getPath());
-    d3.select("path.graticule")
-        .attr("d", map.getPath());
-    d3.selectAll("path.region")
-        .attr("d", map.getPath());
-    d3.selectAll("path.js-line")
-        .attr("d", map.getPath());
-    d3.selectAll("path.point")
-        .attr("d", map.getPath());
-
-};
-
-map.getPath = function getPath() {
-    return d3.geo.path().projection(map.projection);
-};
-
-map.makePoint = function makePoint(d) {
-    var point = {
-        type: "Point",
-        coordinates: [d.lon, d.lat],
-    }
-    if (trace in d) point.trace = trace;
-    return point;
+    points[0].trace = d[0].trace;
+    return points;
 };
 
 map.makeLine = function makeLine(d) {
@@ -397,12 +372,6 @@ map.makeLine = function makeLine(d) {
     };
 };
 
-map.pointPath = function pointPath(d) {
-    rs = 10;
-    return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
-           'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
-};
-
 map.plot = function plot(gd) {
 
     d3.json("raw/world-110m.json", function(error, world) {
@@ -415,7 +384,6 @@ map.plot = function plot(gd) {
         map.makeCalcdata(gd);
 
         map.init(gd);
-        map.drawPaths(gd);
         map.style(gd);
 
     });
@@ -464,7 +432,7 @@ map.style = function(gd) {
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
-            s.selectAll("path.point")
+            s.selectAll(".point")
                 .attr("fill", trace.marker.color);
         });
 };

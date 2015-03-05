@@ -2,22 +2,42 @@ var map = {};
 
 map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
-        proj = fullLayout.map.projection,
-        out;
+        mapObj = fullLayout.map,
+        projObj = mapObj.projection,
+        lonaxisObj = mapObj.lonaxis,
+        lataxisObj = mapObj.lataxis,
+        projection;
     
-    out = d3.geo[proj.type]()
-        .scale(proj._scale)
-        .translate(proj._translate)
+    projection = d3.geo[projObj.type]()
+        .scale(projObj._scale)
+        .translate(projObj._translate)
         .precision(0.1)
-//         .clipExtent([[0, 0], [width/2 , height/2]])
-        .center(proj.center)
-        .rotate(proj._rotate);
+        .center(projObj.center)
+        .rotate(projObj._rotate);
 
-    if (proj.parallels) out.parallels(proj.parallels);
+    if (projObj.parallels) projection.parallels(projObj.parallels);
 
-    if (fullLayout._isOrthographic) out.clipAngle(90);
+    if (fullLayout._isOrthographic) projection.clipAngle(90);
 
-    return out;
+    function getClipExtent() {
+        var lonRange = lonaxisObj.range,
+            latRange = lataxisObj.range,
+            projRotateLon = projObj.rotate[0],
+            leftLim =  projRotateLon - 180,
+            rightLim = projRotateLon + 180,
+            lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
+            lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
+
+        // limit lon range to [leftLim, rightLim] with lon0 < lon1
+        // TODO same for lat !!
+
+        return [projection([lon0, latRange[1]]),
+                projection([lon1, latRange[0]])];
+    }
+    if (lonaxisObj.range &&
+            lataxisObj.range) projection.clipExtent(getClipExtent());
+
+    return projection;
 };
 
 map.supplyDefaults = function supplyDefaults(gd) {
@@ -31,45 +51,46 @@ map.supplyDefaults = function supplyDefaults(gd) {
 
 map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var layout = gd.layout,
-        projection = layout.map.projection;
+        projObjIn = layout.map.projection;
         fullLayout = {};
 
     fullLayout = layout;  // (shortcut) should coerce instead
 
-    fullLayout._isOrthographic = (projection.type === 'orthographic');
-
-    function getScale() {
-        if (projection.type === 'orthographic') return 250;
-        else return (layout.width + 1) / 2 / Math.PI;
-    }
+    fullLayout._isOrthographic = (projObjIn.type === 'orthographic');
 
     fullLayout.map.projection._translate = [layout.width / 2,
                                             layout.height / 2];
 
-    fullLayout.map.projection._rotate = [-projection.rotate[0],
-                                         -projection.rotate[1]];
+    // Is this more intuitive ?
+    fullLayout.map.projection._rotate = [-projObjIn.rotate[0],
+                                         -projObjIn.rotate[1]];
 
-// 
-//     function getExtent() {
-//     }
-
+    function getScale() {
+        // TODO something smarter ?
+        if (projObjIn.type === 'orthographic') return 250;
+        else return (layout.width + 1) / 2 / Math.PI;
+    }
     fullLayout.map.projection._scale = getScale();
 
-    if (!('parallels' in projection)) fullLayout.map.projection.parallels = false;
+    if (!('parallels' in projObjIn)) fullLayout.map.projection.parallels = false;
 
     gd._fullLayout = fullLayout;
 };
 
-map.isScatterMarkers = function(trace) {
-    return (trace.type === "map-scatter" && trace.mode === 'markers');
-};
-
-map.isScatterLines = function(trace) {
-    return (trace.type === "map-scatter" && trace.mode === 'lines');
+map.isScatter = function(trace) {
+    return (trace.type === "map-scatter");
 };
 
 map.isChoropleth = function(trace) {
     return (trace.type === "choropleth");
+};
+
+map.hasScatterMarkers = function(trace) {
+    return (trace.type === "map-scatter" && trace.mode.indexOf('markers')!==-1);
+};
+
+map.hasScatterLines = function(trace) {
+    return (trace.type === "map-scatter" && trace.mode.indexOf('lines')!==-1);
 };
 
 map.makeCalcdata = function makeCalcdata(gd) {
@@ -87,7 +108,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
         // as projected calcdata need to be computed
         // on drag event.
 
-        if (map.isScatterMarkers(trace)) {
+        if (map.isScatter(trace)) {
             N = Math.min(trace.lon.length, trace.lat.length);
             cdi = new Array(N);
 
@@ -97,16 +118,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
                     lat: trace.lat[j]
                 };
             }
-        } else if (map.isScatterLines(trace)) {
-            N = Math.min(trace.lon.length, trace.lat.length);
-            cdi = [{
-                type: "LineString",
-                coordinates: new Array(N)
-            }];
 
-            for (j = 0; j < N; j++) {
-                cdi[0].coordinates[j] = [trace.lon[j], trace.lat[j]];
-            }
         } else if (map.isChoropleth(trace)) {
             var features = topojson.feature(map.world,
                                             map.world.objects.countries)
@@ -137,7 +149,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
-        proj = fullLayout.map.projection,
+        projObj = fullLayout.map.projection,
         isOrthographic = fullLayout._isOrthographic;
 
     var svg = d3.select("body").append("svg")
@@ -199,18 +211,18 @@ map.makeSVG = function makeSVG(gd) {
                     map.projection.rotate([-o1[0], -o0[1]]);
                     map.projection.translate([t0[0], t1[1]]);
                 }
-                map.drawPaths();
+                map.drawPaths(gd);
             }
         });
 
     var zoom = d3.behavior.zoom()
-        .scale(fullLayout.map.projection._scale)
+        .scale(projObj._scale)
         .scaleExtent([100, 1000])
         .on("zoom", function() {
             console.log('zooming');
             console.log(map.projection.scale());
             map.projection.scale(d3.event.scale);
-            map.drawPaths();
+            map.drawPaths(gd);
         });
 
     var dblclick = function() {
@@ -220,13 +232,12 @@ map.makeSVG = function makeSVG(gd) {
         console.log(map.projection.scale());
         map.projection = map.makeProjection(gd);
         console.log(map.projection.scale());
-        map.drawPaths();
+        map.drawPaths(gd);
     };
         
     svg
         .call(drag)
         .call(zoom)
-        .on("click.zoom", null)
         .on("dblclick.zoom", null)
         .on("dblclick", dblclick);
 
@@ -261,8 +272,7 @@ map.init = function init(gd) {
     map.svg.select("g.graticule")
         .append("path")
         .datum(d3.geo.graticule())
-        .attr("class", "graticule")
-        .attr("d", map.worldPath());
+        .attr("class", "graticule");
 
     gData = map.svg.select("g.data")
         .selectAll("g.trace")
@@ -282,11 +292,7 @@ map.init = function init(gd) {
                 s.selectAll("path.regions")
                     .data(Object)
                 .enter().append("path")
-                  .attr("class", "region")
-                  .each(function(d) {
-                      var s = d3.select(this);
-                      s.attr("d", map.pointPath);
-                  });
+                  .attr("class", "region");
             }
         });
 
@@ -296,9 +302,9 @@ map.init = function init(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            if (!map.isScatterLines(trace)) s.remove();
+            if (!map.hasScatterLines(trace)) s.remove();
             else {
-                s.datum(d[0])
+                s.datum(map.makeLine(d))
                  .attr("class", "js-line");
             }
         });
@@ -310,63 +316,60 @@ map.init = function init(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            if (!map.isScatterMarkers(trace)) s.remove();
+            if (!map.hasScatterMarkers(trace)) s.remove();
             else {
+                s.datum(map.makePoints(d))
                 s.selectAll("path.point")
                     .data(Object)
-                  .enter().append("path")
-                    .attr("class", "point")
-                    .each(function(d) {
-                        var s = d3.select(this);
-                        s.attr("d", map.pointPath);
-                    });
+                  .enter().append("path") 
+                    .attr("class", "point");
             }
         });
 
-    map.drawPaths(gd);
+    map.drawPaths(gd);  // draw the paths1
 };
 
-map.drawPaths = function drawPaths(gd) {
-    var isOrthographic = fullLayout._isOrthographic;
+map.drawPaths = function drawPaths() {
+    var path = d3.geo.path().projection(map.projection);
 
-    if (isOrthographic) {
-        d3.select("path.sphere")
-            .attr("d", map.worldPath());
-        // hide paths over the edge
-        d3.selectAll("path.point")
-            .attr("opacity", function(d) {
-                var p = map.projection.rotate(),
-                    angle = d3.geo.distance([d.lon, d.lat],
-                                            [-p[0], -p[1]]);
-                return (angle > Math.PI / 2) ? "0" : "1.0";
-            });
+    // update the paths with the current projection!
+    d3.selectAll("g path")
+        .attr("d", path.pointRadius(25));
+};
+
+map.makePoints = function makePoints(d) {
+    var N =  d.length,
+        points = new Array(N),
+        di;
+
+    // Major drawback: we won't be able to use Plotly.Drawing symbols.
+    // But, we don't have to handle hiding point translated out of map
+    // on pan / zoom.
+
+    for (var i = 0; i < N; i++) {
+        di = d[i];
+        points[i] = {
+            type: "Point",
+            coordinates: [di.lon, di.lat]
+        }
     }
-
-    d3.selectAll("g.baselayer path")
-        .attr("d", map.worldPath());
-    d3.select("path.graticule")
-        .attr("d", map.worldPath());
-    d3.selectAll("path.region")
-        .attr("d", map.worldPath());
-    d3.selectAll("path.js-line")
-        .attr("d", map.worldPath());
-    d3.selectAll("path.point")
-        .attr("transform", map.pointTransform);
+    points[0].trace = d[0].trace;
+    return points;
 };
 
-map.worldPath = function worldPath() {
-    return d3.geo.path().projection(map.projection);
-};
-
-map.pointTransform = function pointTransform(d) {
-    var lonlat = map.projection([d.lon, d.lat]);
-    return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
-};
-
-map.pointPath = function pointPath(d) {
-    rs = 10;
-    return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
-           'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
+map.makeLine = function makeLine(d) {
+    var N =  d.length,
+        coordinates = new Array(N),
+        di;
+    for (var i = 0; i < N; i++) {
+        di = d[i];
+        coordinates[i] = [di.lon, di.lat];
+    }
+    return {
+        type: "LineString",
+        coordinates: coordinates,
+        trace: d[0].trace
+    };
 };
 
 map.plot = function plot(gd) {
@@ -381,7 +384,6 @@ map.plot = function plot(gd) {
         map.makeCalcdata(gd);
 
         map.init(gd);
-        map.drawPaths(gd);
         map.style(gd);
 
     });
@@ -430,7 +432,7 @@ map.style = function(gd) {
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace;
-            s.selectAll("path.point")
+            s.selectAll(".point")
                 .attr("fill", trace.marker.color);
         });
 };

@@ -3,8 +3,8 @@ var gd = {};
 gd.data = [
     {
         type: "choropleth",
-        loc: ["CAN", "USA", "FRA", "AUS"],
-        z: [80, 20, 100, 60]
+        loc: ["CAN", "USA", "RUS", "AUS", "FRA"],
+        z: [80, 20, 100, 60, 40]
     },
     {
         type: "map-scatter",
@@ -19,10 +19,11 @@ gd.data = [
     {
         type: "map-scatter",
         mode: "markers",
-        lon: [-75, 0, 0, -43],
-        lat: [45, 0, 55, -22],
+        lon: [-75, 100, 43],
+        lat: [45, 0, -12],
         marker: {
-            color: 'rgb(255, 0, 0)'
+            color: 'rgb(255,0,0)',
+            size: 20
         }
     }
 ];
@@ -33,11 +34,12 @@ gd.layout = {
     map: {
         projection: {
             type: 'equirectangular',
-            center: [0, 0],
-            rotate: [-60, 0],
-//             parallels: [0, 62],
-            scope: 'globe',
+            center: [0, 0],  // acts like svg translate (how to use this?)
+            rotate: [180, 0],
+//             parallels: [0, 62],  // for certain projections
+            scope: 'globe'
         },
+        //
         showcoastlines: false,
         coastlinescolor: "#aaa",
         coastlineswidth: 2,
@@ -49,20 +51,22 @@ gd.layout = {
         landfill: "#CCFFCC",
         //
         showocean: false,
-        oceancolor: "none",
+        oceancolor: "none",  // should this be oceanlinecolor ?
         oceanwidth: 0,
         oceanfill: "#3399FF",
         //
         showcountries: false,
         countriescolor: "#aaa",
         countrieswidth: 1,
-        countriesfill: "none"
-    },
-    lonaxis: {
-        range: [] 
-    },
-    lataxis: {
-        range: [] 
+        countriesfill: "none",
+        //
+        lonaxis: {
+            range: [0, 180],
+            bounds: []
+        },
+        lataxis: {
+            range: [0, 70],
+            bounds: []
+        }
     }
-    
 };

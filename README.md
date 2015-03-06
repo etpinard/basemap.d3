@@ -2,16 +2,16 @@
 
 A simple API for generating maps using d3.js.
 
-See example at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basemap.d3/).
+See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basemap.d3/).
 
 
 ### Current features
 
+- Basemap of coastlines, land, ocean, countries
 - Scatter points and great circle paths in (lon, lat) coordintates on top of a basemap
 - Choropleth of countries
 - Periodic panning
 - Zoom and pan, double clicking bring back to original position
-- Basemap of coastlines, land, ocean, countries
 - Customizable lon/lat axis ranges
 
 ### TODO list
@@ -24,21 +24,16 @@ See example at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basema
 - Handle grid (i.e. graticules) per axis
 - ...
 
-### Unanswered questions
-
-- How to handle marker point? As SVG paths translated onto the map or as
-  topojson coordinates projected into `<circle>` or `<rect>` elements.
-
-## Running it locally
+### Running it locally
 
 - Get [Natural Earth](http://www.naturalearthdata.com/downloads/) data
 ```bash
-./raw/make.sh wget
+make wget
 ```
 
 - Convert shapefiles into topojson
 ```bash
-./raw/make.sh convert
+make convert
 ```
 
 - Install http-server

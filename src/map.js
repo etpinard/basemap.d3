@@ -1,44 +1,5 @@
 var map = {};
 
-map.makeProjection = function makeProjection(gd) {
-    var fullLayout = gd._fullLayout,
-        mapObj = fullLayout.map,
-        projObj = mapObj.projection,
-        lonaxisObj = mapObj.lonaxis,
-        lataxisObj = mapObj.lataxis,
-        projection;
-
-    projection = d3.geo[projObj.type]()
-        .scale(projObj._scale)
-        .translate(projObj._translate)
-        .precision(0.1)
-        .rotate(projObj._rotate);
-
-    if (projObj.parallels) projection.parallels(projObj.parallels);
-
-    if (fullLayout._isOrthographic) projection.clipAngle(90);
-
-    function getClipExtent() {
-        var lonRange = lonaxisObj.range,
-            latRange = lataxisObj.range,
-            projRotateLon = projObj.rotate[0],
-            leftLim =  projRotateLon - 180,
-            rightLim = projRotateLon + 180,
-            lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
-            lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
-
-        // limit lon range to [leftLim, rightLim] with lon0 < lon1
-        // TODO same for lat !!
-
-        return [projection([lon0, latRange[1]]),
-                projection([lon1, latRange[0]])];
-    }
-    if (lonaxisObj.range &&
-            lataxisObj.range) projection.clipExtent(getClipExtent());
-
-    return projection;
-};
-
 map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
         fullData = [];
@@ -145,6 +106,45 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
     gd.calcdata = cd;
     return gd;
+};
+
+map.makeProjection = function makeProjection(gd) {
+    var fullLayout = gd._fullLayout,
+        mapObj = fullLayout.map,
+        projObj = mapObj.projection,
+        lonaxisObj = mapObj.lonaxis,
+        lataxisObj = mapObj.lataxis,
+        projection;
+
+    projection = d3.geo[projObj.type]()
+        .scale(projObj._scale)
+        .translate(projObj._translate)
+        .precision(0.1)
+        .rotate(projObj._rotate);
+
+    if (projObj.parallels) projection.parallels(projObj.parallels);
+
+    if (fullLayout._isOrthographic) projection.clipAngle(90);
+
+    function getClipExtent() {
+        var lonRange = lonaxisObj.range,
+            latRange = lataxisObj.range,
+            projRotateLon = projObj.rotate[0],
+            leftLim =  projRotateLon - 180,
+            rightLim = projRotateLon + 180,
+            lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
+            lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
+
+        // limit lon range to [leftLim, rightLim] with lon0 < lon1
+        // TODO same for lat !!
+
+        return [projection([lon0, latRange[1]]),
+                projection([lon1, latRange[0]])];
+    }
+    if (lonaxisObj.range &&
+            lataxisObj.range) projection.clipExtent(getClipExtent());
+
+    return projection;
 };
 
 map.makeSVG = function makeSVG(gd) {
@@ -290,10 +290,10 @@ map.init = function init(gd) {
 
             if (!map.isChoropleth(trace)) s.remove();
             else {
-                s.selectAll("path.regions")
+                s.selectAll("path.choroplethloc")
                     .data(Object)
                 .enter().append("path")
-                  .attr("class", "region");
+                  .attr("class", "choroplethloc");
             }
         });
 
@@ -319,43 +319,59 @@ map.init = function init(gd) {
 
             if (!map.hasScatterMarkers(trace)) s.remove();
             else {
-                s.datum(map.makePoints(d))
                 s.selectAll("path.point")
                     .data(Object)
                   .enter().append("path")
-                    .attr("class", "point");
+                     .attr("class", "point")
+                     .each(function(d) {
+                        var s = d3.select(this);
+                        s.attr("d", map.pointPath);
+                     });
             }
         });
 
-    map.drawPaths(gd);  // draw the paths1
+    map.drawPaths(gd);  // draw the paths
 };
 
 map.drawPaths = function drawPaths() {
-    var path = d3.geo.path().projection(map.projection);
+    var projection = map.projection,
+        isOrthographic = gd._fullLayout._isOrthographic,
+        path = d3.geo.path().projection(projection);
 
-    // update the paths with the current projection!
-    d3.selectAll("g path")
-        .attr("d", path.pointRadius(25));
+    function translatePoints(d) {
+        var lonlat = projection([d.lon, d.lat]);
+        return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
+    };
+
+    if (isOrthographic) {
+        d3.select("path.sphere")
+            .attr("d", path);
+        // hide paths over the edge
+        d3.selectAll("path.point")
+            .attr("opacity", function(d) {
+                var p = projection.rotate(),
+                    angle = d3.geo.distance([d.lon, d.lat],
+                                            [-p[0], -p[1]]);
+                return (angle > Math.PI / 2) ? "0" : "1.0";
+            });
+    }
+
+    d3.selectAll("g.baselayer path")
+        .attr("d", path);
+    d3.select("path.graticule")
+        .attr("d", path);
+    d3.selectAll("path.choroplethloc")
+        .attr("d", path);
+    d3.selectAll("path.js-line")
+        .attr("d", path);
+    d3.selectAll("path.point")
+        .attr("transform", translatePoints);
 };
 
-map.makePoints = function makePoints(d) {
-    var N =  d.length,
-        points = new Array(N),
-        di;
-
-    // Major drawback: we won't be able to use Plotly.Drawing symbols.
-    // But, we don't have to handle hiding point translated out of map
-    // on pan / zoom.
-
-    for (var i = 0; i < N; i++) {
-        di = d[i];
-        points[i] = {
-            type: "Point",
-            coordinates: [di.lon, di.lat]
-        }
-    }
-    points[0].trace = d[0].trace;
-    return points;
+map.pointPath = function pointPath(d) {
+    rs = 10;
+    return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
+           'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
 };
 
 map.makeLine = function makeLine(d) {
@@ -371,24 +387,6 @@ map.makeLine = function makeLine(d) {
         coordinates: coordinates,
         trace: d[0].trace
     };
-};
-
-map.plot = function plot(gd) {
-
-    d3.json("../raw/world-110m.json", function(error, world) {
-
-        map.world = world;
-
-        map.supplyDefaults(gd);
-        map.supplyLayoutDefaults(gd);
-        map.makeCalcdata(gd);
-
-        map.projection = map.makeProjection(gd);
-        map.init(gd);
-        map.style(gd);
-
-    });
-
 };
 
 map.style = function(gd) {
@@ -417,7 +415,7 @@ map.style = function(gd) {
 
             color.domain([d3.quantile(trace.z, 0.01),  // TODO generalize
                           d3.quantile(trace.z, 0.99)]);
-            s.selectAll("path.region")
+            s.selectAll("path.choroplethloc")
                 .each(function(d) {
                     var s  = d3.select(this);
                     s.attr("fill", function(d) { return color(d.z); });
@@ -439,4 +437,22 @@ map.style = function(gd) {
             s.selectAll(".point")
                 .attr("fill", trace.marker.color);
         });
+};
+
+map.plot = function plot(gd) {
+
+    map.supplyDefaults(gd);
+    map.supplyLayoutDefaults(gd);
+
+    d3.json("../raw/world-110m.json", function(error, world) {
+
+        map.world = world;
+        map.makeCalcdata(gd);
+        map.projection = map.makeProjection(gd);
+
+        map.init(gd);
+        map.style(gd);
+
+    });
+
 };

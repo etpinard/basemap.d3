@@ -7,7 +7,7 @@ map.makeProjection = function makeProjection(gd) {
         lonaxisObj = mapObj.lonaxis,
         lataxisObj = mapObj.lataxis,
         projection;
-    
+
     projection = d3.geo[projObj.type]()
         .scale(projObj._scale)
         .translate(projObj._translate)
@@ -226,7 +226,7 @@ map.makeSVG = function makeSVG(gd) {
         });
 
     var dblclick = function() {
-        // TODO fix bug zoom 
+        // TODO fix bug zoom
         // -> dblclick -> translate start at last zoomed in position
         console.log('double clicking');
         console.log(map.projection.scale());
@@ -234,7 +234,7 @@ map.makeSVG = function makeSVG(gd) {
         console.log(map.projection.scale());
         map.drawPaths(gd);
     };
-        
+
     svg
         .call(drag)
         .call(zoom)
@@ -322,7 +322,7 @@ map.init = function init(gd) {
                 s.datum(map.makePoints(d))
                 s.selectAll("path.point")
                     .data(Object)
-                  .enter().append("path") 
+                  .enter().append("path")
                     .attr("class", "point");
             }
         });

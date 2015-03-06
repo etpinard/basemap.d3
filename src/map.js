@@ -12,7 +12,6 @@ map.makeProjection = function makeProjection(gd) {
         .scale(projObj._scale)
         .translate(projObj._translate)
         .precision(0.1)
-        .center(projObj.center)
         .rotate(projObj._rotate);
 
     if (projObj.parallels) projection.parallels(projObj.parallels);
@@ -58,6 +57,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     fullLayout._isOrthographic = (projObjIn.type === 'orthographic');
 
+    // TODO something smarter
     fullLayout.map.projection._translate = [layout.width / 2,
                                             layout.height / 2];
 
@@ -66,7 +66,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
                                          -projObjIn.rotate[1]];
 
     function getScale() {
-        // TODO something smarter ?
+        // TODO something smarter
         if (projObjIn.type === 'orthographic') return 250;
         else return (layout.width + 1) / 2 / Math.PI;
     }
@@ -251,8 +251,9 @@ map.init = function init(gd) {
         gData;
 
     // TODO add support for subunits
-    map.baseLayers = ['ocean', 'land',
-                      'countries', 'coastlines'];
+    map.fillLayers = ['ocean', 'land'];
+    map.lineLayers = ['countries', 'coastlines'];
+    map.baseLayers = map.fillLayers.concat(map.lineLayers);
 
     map.svg = map.makeSVG(gd);
 
@@ -380,9 +381,9 @@ map.plot = function plot(gd) {
 
         map.supplyDefaults(gd);
         map.supplyLayoutDefaults(gd);
-        map.projection = map.makeProjection(gd);
         map.makeCalcdata(gd);
 
+        map.projection = map.makeProjection(gd);
         map.init(gd);
         map.style(gd);
 
@@ -393,14 +394,17 @@ map.plot = function plot(gd) {
 map.style = function(gd) {
     var mapObj = gd._fullLayout.map;
 
-    d3.selectAll("g.baselayer path")
-        .each(function(d) {
-            var layer = this.classList[0];
-            d3.select(this)
-                .attr("stroke", mapObj[layer + 'color'])
-                .attr("fill",  mapObj[layer + 'fill'])
-                .attr("stroke-width", mapObj[layer + 'width']);
-        });
+    map.fillLayers.forEach(function(layer){
+        d3.select("path." + layer)
+            .attr("fill", mapObj[layer + 'fillcolor']);
+    });
+
+    map.lineLayers.forEach(function(layer){
+        var s = d3.select("path." + layer);
+        if (layer!=='coastlines') layer += 'line';
+        s.attr("stroke", mapObj[layer + 'color'])
+         .attr("stroke-width", mapObj[layer + 'width']);
+    });
 
     var color = d3.scale.log()
         .range(["hsl(62,100%,90%)", "hsl(228,30%,20%)"])

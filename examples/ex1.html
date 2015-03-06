@@ -40,33 +40,36 @@ gd.layout = {
     width: 960,
     height: 960,
     map: {
+        domain: {
+            x: [0, 1],
+            y: [0, 1]
+        },
+        resolution: '110m',
+        region: 'world',
+        //
         projection: {
             type: 'orthographic',
-            rotate: [180, 0],
-            center: [0, 0],  // acts like svg translate (how to use this?)
+            rotate: [-75, 35]
 //             parallels: [0, 62],  // for certain projections
-            scope: 'globe'
         },
         //
         showcoastlines: true,
         coastlinescolor: "black",
         coastlineswidth: 2,
-        coastlinesfill: "none",  // redundant with landfill
         //
         showland: true,
-//         landcolor: "#aaa",
-//         landwidth: 10,
-        landfill: "#3399FF",  // landfillcolor
+        landfillcolor: "#3B5323",
         //
-        showocean: false,
-//         oceancolor: "none",  // should this be oceanlinecolor ?
-//         oceanwidth: 0,
+        showocean: true,
         oceanfillcolor: "#3399FF",
         //
         showcountries: false,
-        countriescolor: "#aaa",  // countrieslinecolor
-        countrieswidth: 1,       // countrieslinewidth
-        countriesfill: "none",   // redundant with landfill
+        countrieslinecolor: "#aaa",
+        countrieslinewidth: 1,
+        //
+        showsubunits: false,
+        subunitslinecolor: "#aaa",
+        subunitslinewidth: 1,
         //
         lonaxis: {
 //             range: [-180, 180],

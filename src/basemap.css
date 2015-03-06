@@ -4,19 +4,24 @@
     stroke-width: 5px;
 }
 
+.land {
+    stroke-width: 0px;
+}
+
 .ocean {
+    stroke-width: 0px;
 }
 
 .coastlines {
+    fill: none;
 }
 
 .countries {
+    fill: none;
 }
 
-.states_provinces {
+.subunits {
     fill: none;
-    stroke: #9933FF;
-    stroke-width: .5px;
 }
 
 .graticule {

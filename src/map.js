@@ -374,7 +374,7 @@ map.makeLine = function makeLine(d) {
 
 map.plot = function plot(gd) {
 
-    d3.json("raw/world-110m.json", function(error, world) {
+    d3.json("../raw/world-110m.json", function(error, world) {
 
         map.world = world;
 

@@ -56,7 +56,5 @@ npm install http-server -g
 
 ### API
 
-Describe the figure object in `./src/gd.js`
-
-
+Describe the figure object of the examples in `./examples/`
 

@@ -15,8 +15,8 @@ map.supplyDefaults = function supplyDefaults(gd) {
 
         marker = trace.marker;
         if (!('size' in marker)) marker.size = 20;
-        if (!('symbol' in marker)) marker.symbol = 'circle';
         if (!('color' in marker)) marker.color = 'rgb(255, 0, 0)';
+        if (!('symbol' in marker)) marker.symbol = 'circle';
 
         if (!('line' in trace)) trace.line = {};
 
@@ -89,14 +89,20 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
     function calcdataScatter(trace) {
         var N = Math.min(trace.lon.length, trace.lat.length),
+            marker = trace.marker,
             cdi = new Array(N);
+
         for (var j = 0; j < N; j++) {
             cdi[j] = {
                 lon: trace.lon[j],
                 lat: trace.lat[j],
+                ms: Array.isArray(marker.size) ? marker.size[j] : marker.size,
+                mc: Array.isArray(marker.color) ? marker.color[j] : marker.color,
+                mx: Array.isArray(marker.symbol) ? marker.symbol[j] : marker.symbol,
                 tx: trace.text[j]
             };
         }
+
         return cdi;
     }
 
@@ -117,6 +123,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
             cdi[j] = features[indexOfId];
             cdi[j].z = trace.z[j];
         }
+
         return cdi;
     }
 
@@ -416,7 +423,6 @@ map.drawPaths = function drawPaths() {
         .attr("d", path);
 
     var gData = map.svg.select("g.data");
-
     gData.selectAll("path.choroplethloc")
         .attr("d", path);
     gData.selectAll("path.js-line")
@@ -429,7 +435,6 @@ map.drawPaths = function drawPaths() {
 
 map.pointStyle = function pointStyle(s, trace) {
     var marker = trace.marker,
-
         symbols = {
             circle: function(r) {
                 var rs = d3.round(r,2);
@@ -442,14 +447,15 @@ map.pointStyle = function pointStyle(s, trace) {
             }
         };
 
+    s.each(function(d) {
+        d3.select(this).attr("fill", d.mc || marker.color);
+    });
+
     s.attr('d', function(d){
         var r = (d.ms+1) ? d.ms/2 : marker.size/2;
         return symbols[d.mx || marker.symbol](r);
     });
 
-    s.each(function(d) {
-        d3.select(this).attr("fill", d.mc || marker.color);
-    });
 };
 
 map.lineStyle = function lineStyle(s) {

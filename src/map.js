@@ -250,7 +250,7 @@ map.init = function init(gd) {
         fullLayout = gd._fullLayout,
         gData;
 
-    // TODO add support for subunits
+    // TODO add support for subunits and lake/rivers
     map.fillLayers = ['ocean', 'land'];
     map.lineLayers = ['countries', 'coastlines'];
     map.baseLayers = map.fillLayers.concat(map.lineLayers);
@@ -263,7 +263,7 @@ map.init = function init(gd) {
               .append("g")
                 .datum(topojson.feature(world,
                                         world.objects[layer]))
-                .attr("class", "baselayer")
+                .attr("class", layer)
               .append("path")
                 .attr("class", layer);
         }
@@ -356,7 +356,7 @@ map.drawPaths = function drawPaths() {
             });
     }
 
-    d3.selectAll("g.baselayer path")
+    d3.selectAll("g.basemap path")
         .attr("d", path);
     d3.select("path.graticule")
         .attr("d", path);

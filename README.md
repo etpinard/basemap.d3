@@ -19,7 +19,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - Support for 10m and 50m Natural Earth resolution
 - Handle grid (i.e. graticules) per axis
 - Improve maps set scale (as a function of the figure size and axis range)
-- Add lines+markers+text scatter mode
+- Add "text" scatter mode
 
 - Fix zoom bug (zoom -> dbl click -> pan starts panning at last zoomed position)
 - ...

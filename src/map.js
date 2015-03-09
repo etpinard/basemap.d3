@@ -24,6 +24,8 @@ map.supplyDefaults = function supplyDefaults(gd) {
         if (!('color' in line)) line.color = 'rgb(0, 0, 255)';
         if (!('width' in line)) line.width = 4;
 
+        if (!('text' in trace)) trace.text = [];
+
     }
 
     gd._fullData = fullData;
@@ -87,7 +89,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
     // as projected calcdata need to be computed
     // on every drag or zoom event.
 
-    function calcdataScatter(trace) {
+    function calcScatter(trace) {
         var N = Math.min(trace.lon.length, trace.lat.length),
             marker = trace.marker,
             cdi = new Array(N);
@@ -106,18 +108,22 @@ map.makeCalcdata = function makeCalcdata(gd) {
         return cdi;
     }
 
-    function calcdataChoropleth(trace) {
-        var features = topojson.feature(map.world,
+    function calcChoropleth(trace) {
+        var N = trace.loc.length,
+            cdi = new Array(N),
+            features = topojson.feature(map.world,
                                         map.world.objects.countries)
                                         .features,
-            N = trace.loc.length;
-            cdi = new Array(N);
-
-        // TODO jsperf
-        var ids = features.map(function(a) { return a.properties.id; }),
+            Nfeatures = features.length,
+            ids = new Array(Nfeatures),
             indexOfId;
 
-        for (j = 0; j < N; j++) {
+        // TODO store these in topojson
+        for (var k = 0; k < Nfeatures; k++){
+            ids[k] = features[k].properties.id;
+        }
+
+        for (var j = 0; j < N; j++) {
             indexOfId = ids.indexOf(trace.loc[j]);
             if (indexOfId===-1) continue;
             cdi[j] = features[indexOfId];
@@ -130,8 +136,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
     for (var i = 0; i < fullData.length; i++) {
         trace = fullData[i];
 
-        if (map.isScatter(trace)) cdi = calcdataScatter(trace);
-        if (map.isChoropleth(trace)) cdi = calcdataChoropleth(trace);
+        if (map.isScatter(trace)) cdi = calcScatter(trace);
+        if (map.isChoropleth(trace)) cdi = calcChoropleth(trace);
 
         cdi[0].trace = trace;
         cd[i] = cdi;

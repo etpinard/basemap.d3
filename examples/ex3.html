@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../src/basemap.css" />
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="../src/map.js"></script>
+<script>
+var gd = {};
+
+gd.data = [
+    {
+        type: "map-scatter",
+        mode: "markers+lines",
+        lon: [-75, 43, 100],
+        lat: [45, -12, 0],
+        marker: {
+            color: 'rgb(255,255,0)',
+            size: 50,
+            symbol: 'square'
+        }
+    }
+];
+
+gd.layout = {
+    width: 960,
+    height: 960,
+    map: {
+        domain: {
+            x: [0, 1],
+            y: [0, 1]
+        },
+        resolution: '110m',
+        region: 'world',
+        //
+        projection: {
+            type: 'equirectangular',
+            rotate: [-75, 0]
+//             parallels: [0, 62],  // for certain projections
+        },
+        //
+        showcoastlines: true,
+        coastlinescolor: "black",
+        coastlineswidth: 2,
+        //
+        showland: true,
+        landfillcolor: "#3B5323",
+        //
+        showocean: true,
+        oceanfillcolor: "#3399FF",
+        //
+        showcountries: false,
+        countrieslinecolor: "#aaa",
+        countrieslinewidth: 1,
+        //
+        showsubunits: false,
+        subunitslinecolor: "#aaa",
+        subunitslinewidth: 1,
+        //
+        lonaxis: {
+//             range: [-180, 180],
+            bounds: []
+        },
+        lataxis: {
+//             range: [0, 70],
+            bounds: []
+        }
+    }
+};
+
+map.plot(gd);
+</script>
+</body>

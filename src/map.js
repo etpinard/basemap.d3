@@ -2,9 +2,29 @@ var map = {};
 
 map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
-        fullData = [];
+        fullData = [],
+        trace,
+        marker;
 
     fullData = data;  // (shortcut) should coerce instead
+
+    for (var i = 0; i < data.length; i++) {
+        trace = fullData[i];
+
+        if (!('marker' in trace)) trace.marker = {};
+
+        marker = trace.marker;
+        if (!('size' in marker)) marker.size = 20;
+        if (!('symbol' in marker)) marker.symbol = 'circle';
+        if (!('color' in marker)) marker.color = 'rgb(255, 0, 0)';
+
+        if (!('line' in trace)) trace.line = {};
+
+        line = trace.line;
+        if (!('color' in line)) line.color = 'rgb(0, 0, 255)';
+        if (!('width' in line)) line.width = 4;
+
+    }
 
     gd._fullData = fullData;
 };
@@ -57,48 +77,49 @@ map.hasScatterLines = function(trace) {
 map.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
         cd = new Array(fullData.length),
-        N,
-        cdi,
-        i,
-        j;
+        cdi;
 
-    for (i = 0; i < fullData.length; i++) {
-        trace = fullData[i];
+    // don't project calcdata,
+    // as projected calcdata need to be computed
+    // on every drag or zoom event.
 
-        // don't project calcdata,
-        // as projected calcdata need to be computed
-        // on drag event.
-
-        if (map.isScatter(trace)) {
-            N = Math.min(trace.lon.length, trace.lat.length);
+    function calcdataScatter(trace) {
+        var N = Math.min(trace.lon.length, trace.lat.length),
             cdi = new Array(N);
+        for (var j = 0; j < N; j++) {
+            cdi[j] = {
+                lon: trace.lon[j],
+                lat: trace.lat[j]
+            };
+        }
+        return cdi;
+    }
 
-            for (j = 0; j < N; j++) {
-                cdi[j] = {
-                    lon: trace.lon[j],
-                    lat: trace.lat[j]
-                };
-            }
-
-        } else if (map.isChoropleth(trace)) {
-            var features = topojson.feature(map.world,
-                                            map.world.objects.countries)
-                                            .features;
+    function calcdataChoropleth(trace) {
+        var features = topojson.feature(map.world,
+                                        map.world.objects.countries)
+                                        .features,
             N = trace.loc.length;
             cdi = new Array(N);
 
-            // TODO jsperf
-            var ids = features.map(function(a) { return a.properties.id; }),
-                indexOfId;
+        // TODO jsperf
+        var ids = features.map(function(a) { return a.properties.id; }),
+            indexOfId;
 
-            for (j = 0; j < N; j++) {
-                indexOfId = ids.indexOf(trace.loc[j]);
-                if (indexOfId===-1) continue;
-                cdi[j] = features[indexOfId];
-                cdi[j].z = trace.z[j];
-            }
-
+        for (j = 0; j < N; j++) {
+            indexOfId = ids.indexOf(trace.loc[j]);
+            if (indexOfId===-1) continue;
+            cdi[j] = features[indexOfId];
+            cdi[j].z = trace.z[j];
         }
+        return cdi;
+    }
+
+    for (var i = 0; i < fullData.length; i++) {
+        trace = fullData[i];
+
+        if (map.isScatter(trace)) cdi = calcdataScatter(trace);
+        if (map.isChoropleth(trace)) cdi = calcdataChoropleth(trace);
 
         cdi[0].trace = trace;
         cd[i] = cdi;
@@ -145,6 +166,10 @@ map.makeProjection = function makeProjection(gd) {
             lataxisObj.range) projection.clipExtent(getClipExtent());
 
     return projection;
+};
+
+map.setScale = function() {
+
 };
 
 map.makeSVG = function makeSVG(gd) {
@@ -250,7 +275,7 @@ map.init = function init(gd) {
         fullLayout = gd._fullLayout,
         gData;
 
-    // TODO add support for subunits
+    // TODO add support for subunits and lake/rivers
     map.fillLayers = ['ocean', 'land'];
     map.lineLayers = ['countries', 'coastlines'];
     map.baseLayers = map.fillLayers.concat(map.lineLayers);
@@ -263,18 +288,21 @@ map.init = function init(gd) {
               .append("g")
                 .datum(topojson.feature(world,
                                         world.objects[layer]))
-                .attr("class", "baselayer")
+                .attr("class", layer)
               .append("path")
                 .attr("class", layer);
         }
     }
-    map.baseLayers.forEach(plotBaseLayer);
+    for (var i = 0; i < map.baseLayers.length; i++) {
+        plotBaseLayer(map.baseLayers[i]);
+    }
 
     map.svg.select("g.graticule")
         .append("path")
         .datum(d3.geo.graticule())
         .attr("class", "graticule");
 
+    // bind calcdata to SVG
     gData = map.svg.select("g.data")
         .selectAll("g.trace")
         .data(cd)
@@ -305,7 +333,7 @@ map.init = function init(gd) {
 
             if (!map.hasScatterLines(trace)) s.remove();
             else {
-                s.datum(map.makeLine(d))
+                s.datum(map.makeLineGeoJSON(d))
                  .attr("class", "js-line");
             }
         });
@@ -322,15 +350,26 @@ map.init = function init(gd) {
                 s.selectAll("path.point")
                     .data(Object)
                   .enter().append("path")
-                     .attr("class", "point")
-                     .each(function(d) {
-                        var s = d3.select(this);
-                        s.attr("d", map.pointPath);
-                     });
+                     .attr("class", "point");
             }
         });
 
     map.drawPaths(gd);  // draw the paths
+};
+
+map.makeLineGeoJSON = function makeLine(d) {
+    var N =  d.length,
+        coordinates = new Array(N),
+        di;
+    for (var i = 0; i < N; i++) {
+        di = d[i];
+        coordinates[i] = [di.lon, di.lat];
+    }
+    return {
+        type: "LineString",
+        coordinates: coordinates,
+        trace: d[0].trace
+    };
 };
 
 map.drawPaths = function drawPaths() {
@@ -341,7 +380,7 @@ map.drawPaths = function drawPaths() {
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
-    };
+    }
 
     if (isOrthographic) {
         d3.select("path.sphere")
@@ -356,7 +395,7 @@ map.drawPaths = function drawPaths() {
             });
     }
 
-    d3.selectAll("g.baselayer path")
+    d3.selectAll("g.basemap path")
         .attr("d", path);
     d3.select("path.graticule")
         .attr("d", path);
@@ -368,25 +407,39 @@ map.drawPaths = function drawPaths() {
         .attr("transform", translatePoints);
 };
 
-map.pointPath = function pointPath(d) {
-    rs = 10;
-    return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
-           'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
+map.pointStyle = function pointStyle(s, trace) {
+    var marker = trace.marker,
+
+        symbols = {
+            circle: function(r) {
+                var rs = d3.round(r,2);
+                return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
+                    'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
+            },
+            square: function(r) {
+                var rs = d3.round(r,2);
+                return 'M'+rs+','+rs+'H-'+rs+'V-'+rs+'H'+rs+'Z';
+            }
+        };
+
+    s.attr('d', function(d){
+        var r = (d.ms+1) ? d.ms/2 : marker.size/2;
+        return symbols[d.mx || marker.symbol](r);
+    });
+
+    s.each(function(d) {
+        d3.select(this).attr("fill", d.mc || marker.color);
+    });
 };
 
-map.makeLine = function makeLine(d) {
-    var N =  d.length,
-        coordinates = new Array(N),
-        di;
-    for (var i = 0; i < N; i++) {
-        di = d[i];
-        coordinates[i] = [di.lon, di.lat];
-    }
-    return {
-        type: "LineString",
-        coordinates: coordinates,
-        trace: d[0].trace
-    };
+map.lineStyle = function(s) {
+    s.style('fill', 'none')
+        .each(function(d) {
+            var line = d.trace.line;
+            d3.select(this)
+                .attr("stroke", line.color)
+                .attr("stroke-width", line.width);
+        });
 };
 
 map.style = function(gd) {
@@ -423,19 +476,12 @@ map.style = function(gd) {
         });
 
     d3.selectAll("g.trace path.js-line")
-        .each(function(d) {
-            var s = d3.select(this),
-                line = d.trace.line;
-            s.attr("stroke", line.color)
-             .attr("stroke-width", line.width);
-        });
+        .call(map.lineStyle);
 
     d3.selectAll("g.points")
         .each(function(d) {
-            var s = d3.select(this),
-                trace = d[0].trace;
-            s.selectAll(".point")
-                .attr("fill", trace.marker.color);
+            d3.select(this).selectAll("path.point")
+                .call(map.pointStyle, d.trace || d[0].trace);
         });
 };
 

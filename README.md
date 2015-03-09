@@ -10,18 +10,18 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - Basemap of coastlines, land, ocean, countries
 - Scatter points and great circle paths in (lon, lat) coordintates on top of a basemap
 - Choropleth of countries
-- Periodic panning
-- Zoom and pan, double clicking bring back to original position
+- Periodic panning and zoom
 - Customizable lon/lat axis ranges
 
 ### TODO list
 
-- Support for administrative subunits!
-- Fix zoom bug
-- Add customizable scope (on the topojson itself before plotting!)
-- Implement finer resolutions
-- Handle choropleth with stroke color and width (set in data inherited, from layout)
+- Support for administrative subunits / rivers and lakes
+- Support for 10m and 50m Natural Earth resolution
 - Handle grid (i.e. graticules) per axis
+- Improve maps set scale (as a function of the figure size and axis range)
+- Add "text" scatter mode
+
+- Fix zoom bug (zoom -> dbl click -> pan starts panning at last zoomed position)
 - ...
 
 ### Running it locally

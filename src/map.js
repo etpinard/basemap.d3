@@ -74,6 +74,10 @@ map.hasScatterLines = function(trace) {
     return (trace.type === "map-scatter" && trace.mode.indexOf('lines')!==-1);
 };
 
+map.hasScatterText = function(trace) {
+    return (trace.type === "map-scatter" && trace.mode.indexOf('text')!==-1);
+};
+
 map.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
         cd = new Array(fullData.length),
@@ -89,7 +93,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
         for (var j = 0; j < N; j++) {
             cdi[j] = {
                 lon: trace.lon[j],
-                lat: trace.lat[j]
+                lat: trace.lat[j],
+                tx: trace.text[j]
             };
         }
         return cdi;
@@ -338,19 +343,29 @@ map.init = function init(gd) {
             }
         });
 
-    // markers
+    // markers and text
     gData.append("g")
         .attr("class", "points")
         .each(function(d) {
             var s = d3.select(this),
-                trace = d[0].trace;
+                trace = d[0].trace,
+                showMarkers = map.hasScatterMarkers(trace),
+                showText = map.hasScatterText(trace);
 
-            if (!map.hasScatterMarkers(trace)) s.remove();
+            if (!showMarkers && !showText) s.remove();
             else {
-                s.selectAll("path.point")
-                    .data(Object)
-                  .enter().append("path")
-                     .attr("class", "point");
+                if (showMarkers) {
+                    s.selectAll("path.point")
+                        .data(Object)
+                      .enter().append("path")
+                         .attr("class", "point");
+                }
+                if (showText) {
+                    s.selectAll("g")
+                        .data(Object)
+                      .enter().append("g")
+                        .append('text');
+                }
             }
         });
 
@@ -399,11 +414,16 @@ map.drawPaths = function drawPaths() {
         .attr("d", path);
     d3.select("path.graticule")
         .attr("d", path);
-    d3.selectAll("path.choroplethloc")
+
+    var gData = map.svg.select("g.data");
+
+    gData.selectAll("path.choroplethloc")
         .attr("d", path);
-    d3.selectAll("path.js-line")
+    gData.selectAll("path.js-line")
         .attr("d", path);
-    d3.selectAll("path.point")
+    gData.selectAll("path.point")
+        .attr("transform", translatePoints);
+    gData.selectAll("text")
         .attr("transform", translatePoints);
 };
 
@@ -432,7 +452,7 @@ map.pointStyle = function pointStyle(s, trace) {
     });
 };
 
-map.lineStyle = function(s) {
+map.lineStyle = function lineStyle(s) {
     s.style('fill', 'none')
         .each(function(d) {
             var line = d.trace.line;
@@ -442,7 +462,16 @@ map.lineStyle = function(s) {
         });
 };
 
-map.style = function(gd) {
+map.textPointStyle = function textPointStyle(s, trace) {
+    s.each(function(d) {
+        d3.select(this)
+            .style('font-size', '14px')
+            .text(d.tx)
+            .attr('text-anchor', 'middle');
+    });
+};
+
+map.style = function style(gd) {
     var mapObj = gd._fullLayout.map;
 
     map.fillLayers.forEach(function(layer){
@@ -482,6 +511,8 @@ map.style = function(gd) {
         .each(function(d) {
             d3.select(this).selectAll("path.point")
                 .call(map.pointStyle, d.trace || d[0].trace);
+            d3.select(this).selectAll("text")
+                .call(map.textPointStyle, d.trace || d[0].trace);
         });
 };
 

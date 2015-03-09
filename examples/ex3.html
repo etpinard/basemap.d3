@@ -11,14 +11,15 @@ var gd = {};
 gd.data = [
     {
         type: "map-scatter",
-        mode: "markers+lines",
-        lon: [-75, 43, 100],
-        lat: [45, -12, 0],
+        mode: "markers+lines+text",
+        lon: [-75, -5, 140, -120, -75],
+        lat: [45, 50, 40, 38, 45],
         marker: {
             color: 'rgb(255,255,0)',
-            size: 50,
+            size: 30,
             symbol: 'square'
-        }
+        },
+        text: ['YUL', 'LHR', 'NRT', 'SFO', 'YUL']
     }
 ];
 
@@ -46,7 +47,7 @@ gd.layout = {
         showland: true,
         landfillcolor: "#3B5323",
         //
-        showocean: true,
+        showocean: false,
         oceanfillcolor: "#3399FF",
         //
         showcountries: false,

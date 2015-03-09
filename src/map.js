@@ -2,9 +2,22 @@ var map = {};
 
 map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
-        fullData = [];
+        fullData = [],
+        trace,
+        marker;
 
     fullData = data;  // (shortcut) should coerce instead
+
+    for (var i = 0; i < data.length; i++) {
+        trace = fullData[i];
+
+        marker = trace.marker;
+        if (!('marker' in marker)) marker = {};
+        if (!('size' in marker)) marker.size = 20;
+        if (!('symbol' in marker)) marker.symbol = 'circle';
+        if (!('color' in marker)) marker.color = 'rgb(255, 0, 0)';
+
+    }
 
     gd._fullData = fullData;
 };
@@ -322,11 +335,7 @@ map.init = function init(gd) {
                 s.selectAll("path.point")
                     .data(Object)
                   .enter().append("path")
-                     .attr("class", "point")
-                     .each(function(d) {
-                        var s = d3.select(this);
-                        s.attr("d", map.pointPath);
-                     });
+                     .attr("class", "point");
             }
         });
 
@@ -341,7 +350,7 @@ map.drawPaths = function drawPaths() {
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
-    };
+    }
 
     if (isOrthographic) {
         d3.select("path.sphere")
@@ -368,12 +377,6 @@ map.drawPaths = function drawPaths() {
         .attr("transform", translatePoints);
 };
 
-map.pointPath = function pointPath(d) {
-    rs = 10;
-    return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
-           'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
-};
-
 map.makeLine = function makeLine(d) {
     var N =  d.length,
         coordinates = new Array(N),
@@ -387,6 +390,31 @@ map.makeLine = function makeLine(d) {
         coordinates: coordinates,
         trace: d[0].trace
     };
+};
+
+map.pointStyle = function pointStyle(s, trace) {
+    var marker = trace.marker,
+
+        symbols = {
+            circle: function(r) {
+                var rs = d3.round(r,2);
+                return 'M'+rs+',0A'+rs+','+rs+' 0 1,1 0,-'+rs+
+                    'A'+rs+','+rs+' 0 0,1 '+rs+',0Z';
+            },
+            square: function(r) {
+                var rs = d3.round(r,2);
+                return 'M'+rs+','+rs+'H-'+rs+'V-'+rs+'H'+rs+'Z';
+            }
+        };
+
+    s.attr('d', function(d){
+        var r = (d.ms+1) ? d.ms/2 : marker.size/2;
+        return symbols[d.mx || marker.symbol](r);
+    });
+
+    s.each(function(d) {
+        d3.select(this).attr("fill", d.mc || marker.color);
+    });
 };
 
 map.style = function(gd) {
@@ -432,10 +460,8 @@ map.style = function(gd) {
 
     d3.selectAll("g.points")
         .each(function(d) {
-            var s = d3.select(this),
-                trace = d[0].trace;
-            s.selectAll(".point")
-                .attr("fill", trace.marker.color);
+            d3.select(this).selectAll("path.point")
+                .call(map.pointStyle, d.trace || d[0].trace);
         });
 };
 

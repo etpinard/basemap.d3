@@ -15,14 +15,16 @@ map.supplyDefaults = function supplyDefaults(gd) {
 
         marker = trace.marker;
         if (!('size' in marker)) marker.size = 20;
-        if (!('symbol' in marker)) marker.symbol = 'circle';
         if (!('color' in marker)) marker.color = 'rgb(255, 0, 0)';
+        if (!('symbol' in marker)) marker.symbol = 'circle';
 
         if (!('line' in trace)) trace.line = {};
 
         line = trace.line;
         if (!('color' in line)) line.color = 'rgb(0, 0, 255)';
         if (!('width' in line)) line.width = 4;
+
+        if (!('text' in trace)) trace.text = [];
 
     }
 
@@ -74,6 +76,10 @@ map.hasScatterLines = function(trace) {
     return (trace.type === "map-scatter" && trace.mode.indexOf('lines')!==-1);
 };
 
+map.hasScatterText = function(trace) {
+    return (trace.type === "map-scatter" && trace.mode.indexOf('text')!==-1);
+};
+
 map.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
         cd = new Array(fullData.length),
@@ -83,43 +89,49 @@ map.makeCalcdata = function makeCalcdata(gd) {
     // as projected calcdata need to be computed
     // on every drag or zoom event.
 
-    function calcdataScatter(trace) {
+    function calcScatter(trace) {
         var N = Math.min(trace.lon.length, trace.lat.length),
+            marker = trace.marker,
             cdi = new Array(N);
+
         for (var j = 0; j < N; j++) {
             cdi[j] = {
                 lon: trace.lon[j],
-                lat: trace.lat[j]
+                lat: trace.lat[j],
+                ms: Array.isArray(marker.size) ? marker.size[j] : marker.size,
+                mc: Array.isArray(marker.color) ? marker.color[j] : marker.color,
+                mx: Array.isArray(marker.symbol) ? marker.symbol[j] : marker.symbol,
+                tx: trace.text[j]
             };
         }
+
         return cdi;
     }
 
-    function calcdataChoropleth(trace) {
-        var features = topojson.feature(map.world,
-                                        map.world.objects.countries)
-                                        .features,
-            N = trace.loc.length;
-            cdi = new Array(N);
-
-        // TODO jsperf
-        var ids = features.map(function(a) { return a.properties.id; }),
+    function calcChoropleth(trace) {
+        var N = trace.loc.length,
+            cdi = new Array(N),
+            world = map.world,
+            obj = world.objects.countries,  // TODO generalize
+            features = topojson.feature(world, obj).features,
+            ids = obj.properties.ids,
             indexOfId;
 
-        for (j = 0; j < N; j++) {
+        for (var j = 0; j < N; j++) {
             indexOfId = ids.indexOf(trace.loc[j]);
             if (indexOfId===-1) continue;
             cdi[j] = features[indexOfId];
             cdi[j].z = trace.z[j];
         }
+
         return cdi;
     }
 
     for (var i = 0; i < fullData.length; i++) {
         trace = fullData[i];
 
-        if (map.isScatter(trace)) cdi = calcdataScatter(trace);
-        if (map.isChoropleth(trace)) cdi = calcdataChoropleth(trace);
+        if (map.isScatter(trace)) cdi = calcScatter(trace);
+        if (map.isChoropleth(trace)) cdi = calcChoropleth(trace);
 
         cdi[0].trace = trace;
         cd[i] = cdi;
@@ -338,19 +350,29 @@ map.init = function init(gd) {
             }
         });
 
-    // markers
+    // markers and text
     gData.append("g")
         .attr("class", "points")
         .each(function(d) {
             var s = d3.select(this),
-                trace = d[0].trace;
+                trace = d[0].trace,
+                showMarkers = map.hasScatterMarkers(trace),
+                showText = map.hasScatterText(trace);
 
-            if (!map.hasScatterMarkers(trace)) s.remove();
+            if (!showMarkers && !showText) s.remove();
             else {
-                s.selectAll("path.point")
-                    .data(Object)
-                  .enter().append("path")
-                     .attr("class", "point");
+                if (showMarkers) {
+                    s.selectAll("path.point")
+                        .data(Object)
+                      .enter().append("path")
+                         .attr("class", "point");
+                }
+                if (showText) {
+                    s.selectAll("g")
+                        .data(Object)
+                      .enter().append("g")
+                        .append('text');
+                }
             }
         });
 
@@ -399,17 +421,20 @@ map.drawPaths = function drawPaths() {
         .attr("d", path);
     d3.select("path.graticule")
         .attr("d", path);
-    d3.selectAll("path.choroplethloc")
+
+    var gData = map.svg.select("g.data");
+    gData.selectAll("path.choroplethloc")
         .attr("d", path);
-    d3.selectAll("path.js-line")
+    gData.selectAll("path.js-line")
         .attr("d", path);
-    d3.selectAll("path.point")
+    gData.selectAll("path.point")
+        .attr("transform", translatePoints);
+    gData.selectAll("text")
         .attr("transform", translatePoints);
 };
 
 map.pointStyle = function pointStyle(s, trace) {
     var marker = trace.marker,
-
         symbols = {
             circle: function(r) {
                 var rs = d3.round(r,2);
@@ -422,17 +447,18 @@ map.pointStyle = function pointStyle(s, trace) {
             }
         };
 
+    s.each(function(d) {
+        d3.select(this).attr("fill", d.mc || marker.color);
+    });
+
     s.attr('d', function(d){
         var r = (d.ms+1) ? d.ms/2 : marker.size/2;
         return symbols[d.mx || marker.symbol](r);
     });
 
-    s.each(function(d) {
-        d3.select(this).attr("fill", d.mc || marker.color);
-    });
 };
 
-map.lineStyle = function(s) {
+map.lineStyle = function lineStyle(s) {
     s.style('fill', 'none')
         .each(function(d) {
             var line = d.trace.line;
@@ -442,7 +468,16 @@ map.lineStyle = function(s) {
         });
 };
 
-map.style = function(gd) {
+map.textPointStyle = function textPointStyle(s, trace) {
+    s.each(function(d) {
+        d3.select(this)
+            .style('font-size', '14px')
+            .text(d.tx)
+            .attr('text-anchor', 'middle');
+    });
+};
+
+map.style = function style(gd) {
     var mapObj = gd._fullLayout.map;
 
     map.fillLayers.forEach(function(layer){
@@ -482,6 +517,8 @@ map.style = function(gd) {
         .each(function(d) {
             d3.select(this).selectAll("path.point")
                 .call(map.pointStyle, d.trace || d[0].trace);
+            d3.select(this).selectAll("text")
+                .call(map.textPointStyle, d.trace || d[0].trace);
         });
 };
 
@@ -490,7 +527,7 @@ map.plot = function plot(gd) {
     map.supplyDefaults(gd);
     map.supplyLayoutDefaults(gd);
 
-    d3.json("../raw/world-110m.json", function(error, world) {
+    d3.json("../raw/world_110m.json", function(error, world) {
 
         map.world = world;
         map.makeCalcdata(gd);

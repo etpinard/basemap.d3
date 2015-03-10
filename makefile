@@ -1,10 +1,12 @@
-all: wget convert clean
+all: wget convert
 
 wget:
-	@./bin/wget_natural_earth.sh
+	node ./bin/wget_natural_earth.js
 
-convert:
-	@./bin/convert_to_topojson.sh
+shp_to_geojson:
+	node ./bin/shp_to_geojson.js
 
-clean:
-	@./bin/clean_raw.sh
+geojson_to_topojson:
+	node ./bin/geojson_to_topojson.js
+
+convert: shp_to_geojson geojson_to_topojson

@@ -26,6 +26,7 @@ function main(err, configFile) {
         return v.name + '_' + r + 'm.' + ext;
     }
 
+    // TODO handle regions!!
     function ogr2ogr(r, v) {
         return [
             "ogr2ogr -f GeoJSON",

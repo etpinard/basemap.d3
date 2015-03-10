@@ -25,14 +25,12 @@ function main(err, configFile) {
         return 'world_' + r + 'm.json';
     }
 
-    // TODO could do better
-    function id(d) {
-        var p = d.properties;
-        return (p.iso_a3 || p.ISO_A3) || (p.postal);
+    function propertyTransform(feature) {
+        return feature.properties;
     }
 
     config.resolutions.forEach(function(r) {
-        var collections = {};
+        var collections = {}
 
         var barRead = new ProgressBar(
             'Processing GeoJSON files : [:bar] :current/:total :etas',
@@ -43,15 +41,20 @@ function main(err, configFile) {
         );
 
         config.vectors.forEach(function(v) {
-            var d = fs.readFileSync(config.wget_dir + fn(r, v, 'json'), 'utf8');
-            collections[v.name] = JSON.parse(d);
+            var d = fs.readFileSync(config.wget_dir + fn(r, v, 'json'), 'utf8'),
+                collection = JSON.parse(d);
+
+            formatProperties(collection, v);
+            collections[v.name] = collection;
+
             barRead.tick();
         });
 
+        // TODO experiment with simplification/quantization
         var topology = topojson.topology(collections, {
             'verbose': true,
-            'id': id
-        });
+            'property-transform': propertyTransform
+         });
 
         fs.writeFile(config.out_dir + out(r), JSON.stringify(topology), function(err){
             if (!err) barWrite.tick();
@@ -59,4 +62,32 @@ function main(err, configFile) {
 
     });
 
+}
+
+function formatProperties(collection, v) {
+    var features = collection.features,
+        N = features.length,
+        ids = new Array(N),
+        feature,
+        id;
+
+    for (var i = 0; i < N; i++) {
+        feature = features[i];
+
+         if (v.ids) {
+            // TODO generalize for ids.length > 1
+            // TODO handle -99 ids
+            id = feature.properties[v.ids[0]];
+            ids[i] = id;
+            feature.id = id;
+         }
+
+        delete feature.properties;
+    }
+
+
+    if (v.ids) {
+        collection.properties = {};
+        collection.properties.ids = ids;
+    }
 }

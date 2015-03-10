@@ -111,17 +111,11 @@ map.makeCalcdata = function makeCalcdata(gd) {
     function calcChoropleth(trace) {
         var N = trace.loc.length,
             cdi = new Array(N),
-            features = topojson.feature(map.world,
-                                        map.world.objects.countries)
-                                        .features,
-            Nfeatures = features.length,
-            ids = new Array(Nfeatures),
+            world = map.world,
+            obj = world.objects.countries,  // TODO generalize
+            features = topojson.feature(world, obj).features,
+            ids = obj.properties.ids,
             indexOfId;
-
-        // TODO store these in topojson
-        for (var k = 0; k < Nfeatures; k++){
-            ids[k] = features[k].id;
-        }
 
         for (var j = 0; j < N; j++) {
             indexOfId = ids.indexOf(trace.loc[j]);

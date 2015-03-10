@@ -5,35 +5,45 @@
     "src_prefix": "ne_",
     "resolutions": [
         110,
-        50,
-        10
+        50
     ],
     "vectors": [
         {
             "type": "physical",
             "src": "coastline",
-            "name": "coastlines"
+            "name": "coastlines",
+            "ids": false
         },
         {
             "type": "physical",
             "src": "land",
-            "name": "land"
+            "name": "land",
+            "ids": false
         },
         {
             "type": "physical",
             "src": "ocean",
-            "name": "ocean"
+            "name": "ocean",
+            "ids": false
         },
         {
             "type": "cultural",
             "src": "admin_0_countries",
-            "name": "countries"
+            "name": "countries",
+            "ids": ["iso_a3"]
         },
         {
             "type": "cultural",
             "src": "admin_1_states_provinces",
-            "name": "subunits"
+            "name": "subunits",
+            "ids": ["postal"]
         }
     ],
-    "regions": []
+    "regions": [
+        {
+            "name": "USA",
+            "ids": ["USA"]
+        },
+        {}
+    ]
 }

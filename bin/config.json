@@ -1,0 +1,39 @@
+{
+    "out_dir": "./raw/",
+    "wget_dir": "./raw/natural_earth/",
+    "urlbase": "http://naciscdn.org/naturalearth/",
+    "src_prefix": "ne_",
+    "resolutions": [
+        110,
+        50,
+        10
+    ],
+    "vectors": [
+        {
+            "type": "physical",
+            "src": "coastline",
+            "name": "coastlines"
+        },
+        {
+            "type": "physical",
+            "src": "land",
+            "name": "land"
+        },
+        {
+            "type": "physical",
+            "src": "ocean",
+            "name": "ocean"
+        },
+        {
+            "type": "cultural",
+            "src": "admin_0_countries",
+            "name": "countries"
+        },
+        {
+            "type": "cultural",
+            "src": "admin_1_states_provinces",
+            "name": "subunits"
+        }
+    ],
+    "regions": []
+}

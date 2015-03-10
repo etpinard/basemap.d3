@@ -120,7 +120,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
         // TODO store these in topojson
         for (var k = 0; k < Nfeatures; k++){
-            ids[k] = features[k].properties.id;
+            ids[k] = features[k].id;
         }
 
         for (var j = 0; j < N; j++) {
@@ -533,7 +533,7 @@ map.plot = function plot(gd) {
     map.supplyDefaults(gd);
     map.supplyLayoutDefaults(gd);
 
-    d3.json("../raw/world-110m.json", function(error, world) {
+    d3.json("../raw/world_110m.json", function(error, world) {
 
         map.world = world;
         map.makeCalcdata(gd);

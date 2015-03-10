@@ -1,0 +1,28 @@
+{
+  "name": "basemap.d3",
+  "version": "0.0.1",
+  "description": "A simple API for generating maps using d3.js.",
+  "main": "",
+  "directories": {
+    "example": "examples"
+  },
+  "dependencies": {
+    "progress": "~1.1.8",
+    "wget": "0.0.1",
+    "topojson": "~1.6.18",
+    "unzip": "~0.1.11"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/etpinard/basemap.d3.git"
+  },
+  "author": "",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/etpinard/basemap.d3/issues"
+  }
+}

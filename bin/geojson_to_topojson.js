@@ -1,5 +1,6 @@
 var fs = require('fs'),
     topojson  = require('topojson'),
+    gju = require('geojson-utils'),
     ProgressBar = require('progress');
 
 fs.readFile('./bin/config.json', 'utf8', main);
@@ -25,12 +26,13 @@ function main(err, configFile) {
         return 'world_' + r + 'm.json';
     }
 
+    // map all geojson properties to topojson
     function propertyTransform(feature) {
         return feature.properties;
     }
 
     config.resolutions.forEach(function(r) {
-        var collections = {}
+        var collections = {};
 
         var barRead = new ProgressBar(
             'Processing GeoJSON files : [:bar] :current/:total :etas',
@@ -69,7 +71,46 @@ function formatProperties(collection, v) {
         N = features.length,
         ids = new Array(N),
         feature,
+        properties,
         id;
+
+    function getCentroid(feature){
+        var geometry = feature.geometry;
+
+        function getOne(polygon) {
+            return gju.centroid(polygon).coordinates;
+        }
+
+        if (geometry.type==='MultiPolygon') {
+            var coordinates = geometry.coordinates,
+                N = coordinates.length,
+                centroids = new Array(N),
+                areas = new Array(N),
+                polygon,
+                indexOfMax;
+
+            // compute one centroid per polygon and
+            // pick the one associated with the
+            // largest area.
+
+            for (var i = 0; i < N; i++) {
+                polygon = {
+                    type: "Polygon",
+                    coordinates: coordinates[i]
+                };
+                centroids[i] = getOne(polygon);
+                areas[i] = gju.area(polygon);
+            }
+
+            // 'min' works best, not sure why
+            indexOfMax = areas.indexOf(Math.min.apply(Math, areas));
+            return centroids[indexOfMax];
+        }
+        else if (geometry.type==='Polygon') {
+            return getOne(geometry);
+        }
+        else return;
+    }
 
     for (var i = 0; i < N; i++) {
         feature = features[i];
@@ -78,13 +119,15 @@ function formatProperties(collection, v) {
             // TODO generalize for ids.length > 1
             // TODO handle -99 ids
             id = feature.properties[v.ids[0]];
+
             ids[i] = id;
             feature.id = id;
+
+            feature.properties = {
+                centroid: getCentroid(feature)
+            };
          }
-
-        delete feature.properties;
     }
-
 
     if (v.ids) {
         collection.properties = {};

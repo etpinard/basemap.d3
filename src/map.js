@@ -11,6 +11,9 @@ map.supplyDefaults = function supplyDefaults(gd) {
     for (var i = 0; i < data.length; i++) {
         trace = fullData[i];
 
+        if (!('mode' in trace)) trace.mode = 'markers';
+        if (!('locmode' in trace)) trace.locmode = 'ISO-3';
+
         if (!('marker' in trace)) trace.marker = {};
 
         marker = trace.marker;
@@ -85,24 +88,64 @@ map.makeCalcdata = function makeCalcdata(gd) {
         cd = new Array(fullData.length),
         cdi;
 
+    function getFromGeoJSON(trace) {
+        var world = map.world,
+            locmodeToLayer = {
+                "ISO-3": "countries",
+                "USA-states": "subunits"
+            },
+            layer = locmodeToLayer[trace.locmode],
+            obj = world.objects[layer];
+
+        return {
+            features: topojson.feature(world, obj).features,
+            ids: obj.properties.ids
+        };
+    }
+
     // don't project calcdata,
     // as projected calcdata need to be computed
     // on every drag or zoom event.
 
     function calcScatter(trace) {
-        var N = Math.min(trace.lon.length, trace.lat.length),
-            marker = trace.marker,
-            cdi = new Array(N);
+        var marker = trace.marker,
+            cdi = [],
+            N,
+            getLonLat,
+            lonlat;
+
+        if ('loc' in trace) {
+            var fromGeoJSON = getFromGeoJSON(trace),
+                features = fromGeoJSON.features,
+                ids = fromGeoJSON.ids,
+                indexOfId;
+
+            N = trace.loc.length;
+
+            getLonLat = function(trace, j) {
+                indexOfId = ids.indexOf(trace.loc[j]);
+                if (indexOfId===-1) return;
+                return features[indexOfId].properties.centroid
+            };
+        } else {
+            N = Math.min(trace.lon.length, trace.lat.length);
+
+            getLonLat = function(trace, j) {
+                return [trace.lon[j], trace.lat[j]];
+            };
+        }
 
         for (var j = 0; j < N; j++) {
-            cdi[j] = {
-                lon: trace.lon[j],
-                lat: trace.lat[j],
+            lonlat = getLonLat(trace, j);
+            if (!lonlat) continue;
+            cdi.push({
+                lon: lonlat[0],
+                lat: lonlat[1],
                 ms: Array.isArray(marker.size) ? marker.size[j] : marker.size,
                 mc: Array.isArray(marker.color) ? marker.color[j] : marker.color,
                 mx: Array.isArray(marker.symbol) ? marker.symbol[j] : marker.symbol,
                 tx: trace.text[j]
-            };
+            });
         }
 
         return cdi;
@@ -110,18 +153,20 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
     function calcChoropleth(trace) {
         var N = trace.loc.length,
-            cdi = new Array(N),
-            world = map.world,
-            obj = world.objects.countries,  // TODO generalize
-            features = topojson.feature(world, obj).features,
-            ids = obj.properties.ids,
-            indexOfId;
+            fromGeoJSON = getFromGeoJSON(trace),
+            features = fromGeoJSON.features,
+            ids = fromGeoJSON.ids,
+            cdi = [],
+            indexOfId,
+            feature;
 
         for (var j = 0; j < N; j++) {
             indexOfId = ids.indexOf(trace.loc[j]);
             if (indexOfId===-1) continue;
-            cdi[j] = features[indexOfId];
-            cdi[j].z = trace.z[j];
+
+            feature = features[indexOfId];
+            feature.z = trace.z[j];
+            cdi.push(feature);
         }
 
         return cdi;
@@ -287,13 +332,14 @@ map.init = function init(gd) {
         fullLayout = gd._fullLayout,
         gData;
 
-    // TODO add support for subunits and lake/rivers
+    // TODO add support for lake/rivers
     map.fillLayers = ['ocean', 'land'];
-    map.lineLayers = ['countries', 'coastlines'];
+    map.lineLayers = ['subunits', 'countries', 'coastlines'];
     map.baseLayers = map.fillLayers.concat(map.lineLayers);
 
     map.svg = map.makeSVG(gd);
 
+    // basemap layers
     function plotBaseLayer(layer) {
         if (fullLayout.map['show' + layer]===true) {
             map.svg.select("g.basemap")
@@ -309,6 +355,7 @@ map.init = function init(gd) {
         plotBaseLayer(map.baseLayers[i]);
     }
 
+    // grid layers
     map.svg.select("g.graticule")
         .append("path")
         .datum(d3.geo.graticule())
@@ -379,7 +426,7 @@ map.init = function init(gd) {
     map.drawPaths(gd);  // draw the paths
 };
 
-map.makeLineGeoJSON = function makeLine(d) {
+map.makeLineGeoJSON = function makeLineGeoJSON(d) {
     var N =  d.length,
         coordinates = new Array(N),
         di;

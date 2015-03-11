@@ -19,6 +19,18 @@ gd.data = [
         loc: ["NY", "CA", "WA", "TX", "FL"],
         locmode: 'USA-states',
         z: [70, 20, 90, 30, 40]
+        //text: [] at centroid?
+    },
+    {
+        type: "map-scatter",
+        mode: 'markers+text',
+        loc: ["CAN", "USA", "FRA"],
+        marker: {
+            color: ["#359441", "#943588", "#469DE8"],
+            size: [100, 30, 40],
+            symbol: ['circle', 'square', 'circle']
+        },
+        text: ['Canada', 'United States', 'France']
     }
 ];
 
@@ -49,9 +61,9 @@ gd.layout = {
         showocean: false,
         oceanfillcolor: "#3399FF",
         //
-        showcountries: false,
+        showcountries: true,
         countrieslinecolor: "#aaa",
-        countrieslinewidth: 1,
+        countrieslinewidth: 1.5,
         //
         showsubunits: true,
         subunitslinecolor: "#aaa",
@@ -59,11 +71,13 @@ gd.layout = {
         //
         lonaxis: {
 //             range: [-180, 180],
-            bounds: []
+//             bounds: [],
+            showgrid: false
         },
         lataxis: {
 //             range: [0, 70],
-            bounds: []
+//             bounds: [],
+            showgrid: true
         }
     }
 };

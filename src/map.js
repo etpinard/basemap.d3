@@ -16,6 +16,64 @@ map.coerceNest = function coerceNest(containerIn, containerOut, nest, astr, dflt
     return map.coerce(containerIn[nest], containerOut[nest], astr, dflt);
 };
 
+map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
+    var layout = gd.layout,
+        fullLayout = {},
+        mapLayout = layout.map,
+        mapFullLayout = {};
+
+    function coerce(astr, dflt) {
+        return map.coerce(layout, fullLayout, astr, dflt);
+    }
+
+    function coerceMap(astr, dflt) {
+        return map.coerce(mapLayout, mapFullLayout, astr, dflt);
+    }
+
+    function coerceMapNest(nest, astr, dflt) {
+        return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
+    }
+
+    coerce('width', 960);
+    coerce('height', 960);
+
+    coerceMap('domain', {x: [0, 1], y: [0, 1]});
+    var region = coerceMap('region', 'world');
+    var resolution = coerceMap('resolution', '110m');
+    coerceMap('_topojson', region + '_' + resolution);
+
+    var type = coerceMapNest('projection', 'type', 'equirectangular');
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
+
+    // Is this more intuitive?
+    coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
+
+    var isOrthographic = coerceMapNest('projection', '_isOrthographic',
+                                       (type==='orthographic'));
+
+    coerceMapNest('projection', 'parallels', null);
+
+    coerceMap('showcoastlines', true);
+    coerceMap('coastlinescolor', 'black');
+    coerceMap('coastlineswidth', 2);
+    coerceMap('showland', false);
+    coerceMap('landfillcolor', '#3B5323');
+    coerceMap('showocean', false);
+    coerceMap('oceanfillcolor', '#3399FF');
+    coerceMap('showcountries', false);
+    coerceMap('countrieslinecolor', '#aaa');
+    coerceMap('countrieslinewidth', 1.5);
+    coerceMap('showsubunits', false);
+    coerceMap('subunitslinecolor', '#aaa');
+    coerceMap('subunitslinewidth', 1);
+
+    coerceMapNest('lonaxis', 'range', [-180, 180]);
+    coerceMapNest('lataxis', 'range', [-90, 90]);
+
+    fullLayout.map = mapFullLayout;
+    gd._fullLayout = fullLayout;
+};
+
 map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
         Ntrace = data.length,
@@ -59,72 +117,27 @@ map.supplyDefaults = function supplyDefaults(gd) {
     gd._fullData = fullData;
 };
 
-map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
-    var layout = gd.layout,
-        fullLayout = {},
-        mapLayout = layout.map,
-        mapFullLayout = {};
+map.setPosition = function(gd) {
+    var fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
+        mapDomain = mapLayout.domain,
+        projLayout = mapLayout.projection,
+        isOrthographic = projLayout._isOrthographic,
+        lonaxisRange = mapLayout.lonaxis.range;
 
-    function coerce(astr, dflt) {
-        return map.coerce(layout, fullLayout, astr, dflt);
+    // TODO
+    projLayout._translate = [fullLayout.width/2, fullLayout.height/2];
+
+    mapLayout._length = fullLayout.width * (mapDomain.x[1] - mapDomain.x[0]);
+//     mapLayout._m = mapLayout._length * 360 / (lonaxisRange[1] - lonaxisRange[0]);
+    mapLayout._m = mapLayout._length;
+
+    if (isOrthographic) {
+        projLayout._scale = 250;
     }
-
-    function coerceMap(astr, dflt) {
-        return map.coerce(mapLayout, mapFullLayout, astr, dflt);
+    else {
+        projLayout._scale = (mapLayout._m + 1) / 2 / Math.PI;
     }
-
-    function coerceMapNest(nest, astr, dflt) {
-        return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
-    }
-
-    var width = coerce('width', 960);
-    var height = coerce('height', 960);
-
-    coerceMap('domain', {x: [0, 1], y: [0, 1]});
-    coerceMap('resolution', '110m');
-    coerceMap('region', 'world');
-
-    var type = coerceMapNest('projection', 'type', 'equirectangular');
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
-
-    // Is this more intuitive?
-    coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
-
-    // TODO something smarter?
-    coerceMapNest('projection', '_translate', [width/2, height/2]);
-
-    var isOrthographic = coerceMapNest('projection', '_isOrthographic',
-                                       (type==='orthographic'));
-
-    // TODO something smarter
-    function getScale() {
-        if (isOrthographic) return 250;
-        else return (width + 1) / 2 / Math.PI;
-    }
-    coerceMapNest('projection', '_scale', getScale());
-
-    coerceMapNest('projection', 'parallels', null);
-
-    coerceMap('showcoastlines', true);
-    coerceMap('coastlinescolor', 'black');
-    coerceMap('coastlineswidth', 2);
-    coerceMap('showland', false);
-    coerceMap('landfillcolor', '#3B5323');
-    coerceMap('showocean', false);
-    coerceMap('oceanfillcolor', '#3399FF');
-    coerceMap('showcountries', false);
-    coerceMap('countrieslinecolor', '#aaa');
-    coerceMap('countrieslinewidth', 1);
-    coerceMap('showsubunits', false);
-    coerceMap('subunitslinecolor', '#aaa');
-    coerceMap('subunitslinewidth', 1);
-
-    coerceMapNest('lonaxis', 'range', [-180, 180]);
-    coerceMapNest('lataxis', 'range', [-90, 90]);
-
-
-    fullLayout.map = mapFullLayout;
-    gd._fullLayout = fullLayout;
 };
 
 map.isScatter = function(trace) {
@@ -287,17 +300,6 @@ map.makeProjection = function makeProjection(gd) {
 //             lataxisLayout.range) projection.clipExtent(getClipExtent());
 
     return projection;
-};
-
-map.setScale = function(gd) {
-    var fullLayout = gd._fullLayout,
-        mapLayout = fullLayout.map,
-        mapDomain = mapLayout.domain,
-        lonaxisRange = mapLayout.lonaxis.range;
-
-    mapLayout._length = fullLayout.width * (mapDomain.x[1] - mapDomain.x[0]);
-    mapLayout._m = mapLayout._length / (lonaxisRange[1] - lonaxisRange[0]);
-
 };
 
 map.makeSVG = function makeSVG(gd) {
@@ -644,10 +646,13 @@ map.style = function style(gd) {
 
 map.plot = function plot(gd) {
 
+    map.supplyLayoutDefaults(gd);  // some trace attributes depend on layout
     map.supplyDefaults(gd);
-    map.supplyLayoutDefaults(gd);
+    map.setPosition(gd);
 
-    d3.json("../raw/world_110m.json", function(error, world) {
+    var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
+
+    d3.json(topojsonPath, function(error, world) {
 
         map.world = world;
         map.makeCalcdata(gd);

@@ -1,5 +1,6 @@
 var fs = require('fs'),
     topojson  = require('topojson'),
+    gju = require('geojson-utils'),
     ProgressBar = require('progress');
 
 fs.readFile('./bin/config.json', 'utf8', main);
@@ -25,6 +26,7 @@ function main(err, configFile) {
         return 'world_' + r + 'm.json';
     }
 
+    // map all geojson properties to topojson
     function propertyTransform(feature) {
         return feature.properties;
     }
@@ -69,7 +71,44 @@ function formatProperties(collection, v) {
         N = features.length,
         ids = new Array(N),
         feature,
+        properties,
         id;
+
+    function getCentroid(feature){
+        var geometry = feature.geometry;
+
+        function getOne(polygon) {
+            return gju.centroid(polygon).coordinates;
+        }
+
+        if (geometry.type==='MultiPolygon') {
+            var coordinates = geometry.coordinates,
+                N = coordinates.length,
+                sum = [0, 0],
+                wsum = 0,
+                polygon,
+                c,
+                a;
+
+            for (var i = 0; i < N; i++) {
+                polygon = {
+                    type: "Polygon",
+                    coordinates: coordinates[i]
+                }
+                c = getOne(polygon);
+                a = gju.area(polygon);
+                sum[0] += a * c[0];
+                sum[1] += a * c[1];
+                wsum += a;
+            }
+
+            return [sum[0] / wsum, sum[1] / wsum];
+        }
+        else if (geometry.type==='Polygon') {
+            return getOne(geometry);
+        }
+        else return;
+    }
 
     for (var i = 0; i < N; i++) {
         feature = features[i];
@@ -78,13 +117,15 @@ function formatProperties(collection, v) {
             // TODO generalize for ids.length > 1
             // TODO handle -99 ids
             id = feature.properties[v.ids[0]];
+
             ids[i] = id;
             feature.id = id;
+
+            feature.properties = {
+                centroid: getCentroid(feature)
+            };
          }
-
-        delete feature.properties;
     }
-
 
     if (v.ids) {
         collection.properties = {};

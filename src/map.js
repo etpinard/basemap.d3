@@ -26,6 +26,8 @@ map.supplyDefaults = function supplyDefaults(gd) {
 
         if (!('text' in trace)) trace.text = [];
 
+        if (!('locmode' in trace)) trace.locmode = 'ISO-3';
+
     }
 
     gd._fullData = fullData;
@@ -109,10 +111,18 @@ map.makeCalcdata = function makeCalcdata(gd) {
     }
 
     function calcChoropleth(trace) {
+
+        function locmodeToLayer(locmode) {
+            return {
+                "ISO-3": "countries",
+                "USA-states": "subunits"
+            }[locmode];
+        }
+
         var N = trace.loc.length,
             cdi = new Array(N),
             world = map.world,
-            obj = world.objects.countries,  // TODO generalize
+            obj = world.objects[locmodeToLayer(trace.locmode)],
             features = topojson.feature(world, obj).features,
             ids = obj.properties.ids,
             indexOfId;
@@ -287,9 +297,9 @@ map.init = function init(gd) {
         fullLayout = gd._fullLayout,
         gData;
 
-    // TODO add support for subunits and lake/rivers
+    // TODO add support for lake/rivers
     map.fillLayers = ['ocean', 'land'];
-    map.lineLayers = ['countries', 'coastlines'];
+    map.lineLayers = ['subunits', 'countries', 'coastlines'];
     map.baseLayers = map.fillLayers.concat(map.lineLayers);
 
     map.svg = map.makeSVG(gd);

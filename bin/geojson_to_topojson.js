@@ -30,7 +30,7 @@ function main(err, configFile) {
     }
 
     config.resolutions.forEach(function(r) {
-        var collections = {}
+        var collections = {};
 
         var barRead = new ProgressBar(
             'Processing GeoJSON files : [:bar] :current/:total :etas',

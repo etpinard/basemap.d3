@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../src/basemap.css" />
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="../src/map.js"></script>
+<script>
+var gd = {};
+
+gd.data = [
+    {
+        type: "choropleth",
+        loc: ["CAN", "MEX", "RUS", "AUS", "FRA"],
+        z: [80, 60, 100, 60, 20]
+    },
+    {
+        type: "choropleth",
+        loc: ["NY", "CA", "WA", "TX", "FL"],
+        locmode: 'USA-states',
+        z: [70, 20, 90, 30, 40]
+    }
+];
+
+gd.layout = {
+    width: 960,
+    height: 960,
+    map: {
+        domain: {
+            x: [0, 1],
+            y: [0, 1]
+        },
+        resolution: '110m',
+        region: 'world',
+        //
+        projection: {
+            type: 'equirectangular',
+            rotate: [-75, 0]
+//             parallels: [0, 62],  // for certain projections
+        },
+        //
+        showcoastlines: true,
+        coastlinescolor: "black",
+        coastlineswidth: 2,
+        //
+        showland: false,
+        landfillcolor: "#F4A460",
+        //
+        showocean: false,
+        oceanfillcolor: "#3399FF",
+        //
+        showcountries: false,
+        countrieslinecolor: "#aaa",
+        countrieslinewidth: 1,
+        //
+        showsubunits: true,
+        subunitslinecolor: "#aaa",
+        subunitslinewidth: 1,
+        //
+        lonaxis: {
+//             range: [-180, 180],
+            bounds: []
+        },
+        lataxis: {
+//             range: [0, 70],
+            bounds: []
+        }
+    }
+};
+
+map.plot(gd);
+</script>
+</body>

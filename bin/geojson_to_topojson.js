@@ -84,25 +84,27 @@ function formatProperties(collection, v) {
         if (geometry.type==='MultiPolygon') {
             var coordinates = geometry.coordinates,
                 N = coordinates.length,
-                sum = [0, 0],
-                wsum = 0,
+                centroids = new Array(N),
+                areas = new Array(N),
                 polygon,
-                c,
-                a;
+                indexOfMax;
+
+            // compute one centroid per polygon and
+            // pick the one associated with the
+            // largest area.
 
             for (var i = 0; i < N; i++) {
                 polygon = {
                     type: "Polygon",
                     coordinates: coordinates[i]
-                }
-                c = getOne(polygon);
-                a = gju.area(polygon);
-                sum[0] += a * c[0];
-                sum[1] += a * c[1];
-                wsum += a;
+                };
+                centroids[i] = getOne(polygon);
+                areas[i] = gju.area(polygon);
             }
 
-            return [sum[0] / wsum, sum[1] / wsum];
+            // 'min' works best, not sure why
+            indexOfMax = areas.indexOf(Math.min.apply(Math, areas));
+            return centroids[indexOfMax];
         }
         else if (geometry.type==='Polygon') {
             return getOne(geometry);

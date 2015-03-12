@@ -56,13 +56,24 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('showcoastlines', true);
     coerceMap('coastlinescolor', 'black');
     coerceMap('coastlineswidth', 2);
+
     coerceMap('showland', false);
     coerceMap('landfillcolor', '#3B5323');
+
     coerceMap('showocean', false);
     coerceMap('oceanfillcolor', '#3399FF');
+
+    coerceMap('showlakes', true);
+    coerceMap('lakesfillcolor', '#3399FF');
+
+    coerceMap('showrivers', true);
+    coerceMap('riverslinecolor', '#3399FF');
+    coerceMap('riverslinewidth', 1);
+
     coerceMap('showcountries', false);
     coerceMap('countrieslinecolor', '#aaa');
     coerceMap('countrieslinewidth', 1.5);
+
     coerceMap('showsubunits', false);
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
@@ -166,16 +177,16 @@ map.makeCalcdata = function makeCalcdata(gd) {
         cdi;
 
     function getFromGeoJSON(trace) {
-        var world = map.world,
+        var topo = map.topo,
             locmodeToLayer = {
                 "ISO-3": "countries",
                 "USA-states": "subunits"
             },
             layer = locmodeToLayer[trace.locmode],
-            obj = world.objects[layer];
+            obj = topo.objects[layer];
 
         return {
-            features: topojson.feature(world, obj).features,
+            features: topojson.feature(topo, obj).features,
             ids: obj.properties.ids
         };
     }
@@ -202,7 +213,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
             getLonLat = function(trace, j) {
                 indexOfId = ids.indexOf(trace.loc[j]);
                 if (indexOfId===-1) return;
-                return features[indexOfId].properties.centroid
+                return features[indexOfId].properties.centroid;
             };
         } else {
             N = Math.min(trace.lon.length, trace.lat.length);
@@ -400,32 +411,37 @@ map.makeSVG = function makeSVG(gd) {
 };
 
 map.init = function init(gd) {
-    var world = map.world,
+    var topo = map.topo,
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
+        gBasemap,
         gData;
 
-    // TODO add support for lake/rivers
-    map.fillLayers = ['ocean', 'land'];
-    map.lineLayers = ['subunits', 'countries', 'coastlines'];
-    map.baseLayers = map.fillLayers.concat(map.lineLayers);
+    map.fillLayers = ['ocean', 'land', 'lakes'];
+    map.lineLayers = ['subunits', 'countries', 'coastlines', 'rivers'];
+
+//     map.baselayers = ['ocean', 'land', 'subunits', 'countries', 'coastlines'];
+//     map.baselayersOverChoropleth = ['rivers', 'lakes'];
+
+    map.baselayers = map.fillLayers.concat(map.lineLayers);
 
     map.svg = map.makeSVG(gd);
 
-    // basemap layers
-    function plotBaseLayer(layer) {
+    function plotBaseLayer(s, layer) {
         if (fullLayout.map['show' + layer]===true) {
-            map.svg.select("g.basemap")
-              .append("g")
-                .datum(topojson.feature(world,
-                                        world.objects[layer]))
+             s.append("g")
+                .datum(topojson.feature(topo,
+                                        topo.objects[layer]))
                 .attr("class", layer)
               .append("path")
                 .attr("class", layer);
         }
     }
-    for (var i = 0; i < map.baseLayers.length; i++) {
-        plotBaseLayer(map.baseLayers[i]);
+
+    //
+    gBasemap = map.svg.select("g.basemap");
+    for (var i = 0;  i < map.baselayers.length; i++) {
+        plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
     // grid layers
@@ -453,11 +469,12 @@ map.init = function init(gd) {
                 s.selectAll("path.choroplethloc")
                     .data(Object)
                 .enter().append("path")
-                  .attr("class", "choroplethloc");
+                  .attr("class", "choroplethloc")
+                  .attr("fill-rule", "nonzero");
             }
-        });
+    });
 
-    // lines
+    // scatter lines
     gData.append("path")
         .each(function(d) {
             var s = d3.select(this),
@@ -470,7 +487,7 @@ map.init = function init(gd) {
             }
         });
 
-    // markers and text
+    // scatter markers and text
     gData.append("g")
         .attr("class", "points")
         .each(function(d) {
@@ -609,7 +626,7 @@ map.style = function style(gd) {
 
     map.lineLayers.forEach(function(layer){
         var s = d3.select("path." + layer);
-        if (layer!=='coastlines') layer += 'line';
+        if (layer!=='coastlines') layer += 'line';  // coastline is an exception
         s.attr("stroke", mapLayout[layer + 'color'])
          .attr("stroke-width", mapLayout[layer + 'width']);
     });
@@ -652,9 +669,9 @@ map.plot = function plot(gd) {
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 
-    d3.json(topojsonPath, function(error, world) {
+    d3.json(topojsonPath, function(error, topo) {
 
-        map.world = world;
+        map.topo = topo;
         map.makeCalcdata(gd);
         map.projection = map.makeProjection(gd);
 

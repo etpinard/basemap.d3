@@ -7,7 +7,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 ### Current features
 
-- Basemap of coastlines, land, ocean, countries, USA states
+- Basemap of coastlines, land, ocean, countries, USA states, river and lakes
 - Scatter points/text and great circle paths in (lon, lat) coordintates on top of a basemap
 - Choropleth of countries
 - Scatter points/text by locations (e.g. ISO-3)
@@ -16,16 +16,26 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 ### TODO list
 
-- Add rivers and lakes layers
 - Add more subunits and choropleth `locmode` values
-- Support for 10m and 50m Natural Earth resolution / regions
+- Support for regions
 - Handle grid (i.e. graticules) per axis
 - Improve maps set scale (as a function of the figure size and axis range)
 
+- Draw rivers and lakes above choropleth fills
 - Fix zoom bug (zoom -> dbl click -> pan starts panning at last zoomed position)
 - ...
 
 ### Running it locally
+
+- Install gdal (info:
+  [ubuntu](http://www.sarasafavi.com/installing-gdalogr-on-ubuntu.html) ;
+  [mac](https://trac.osgeo.org/gdal/wiki/BuildingOnMac))
+
+- Install node.js dependencies
+```bash
+npm install
+```
+
 
 - Get [Natural Earth](http://www.naturalearthdata.com/downloads/) data
 ```bash

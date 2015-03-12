@@ -38,9 +38,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerce('height', 960);
 
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
-    var region = coerceMap('region', 'world');
+    var scope = coerceMap('scope', 'world');
     var resolution = coerceMap('resolution', '110m');
-    coerceMap('_topojson', region + '_' + resolution);
+    coerceMap('_topojson', scope + '_' + resolution);
 
     var type = coerceMapNest('projection', 'type', 'equirectangular');
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);

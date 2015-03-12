@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../src/basemap.css" />
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="../src/map.js"></script>
+<script>
+var gd = {};
+
+gd.data = [
+    {
+        type: "map-scatter",
+        mode: "lines",
+        lon: [-77, 116],
+        lat: [39, 24],
+        line: {
+            color: 'rgb(0, 255, 255)',
+            width: 5
+        }
+    },
+    {
+        type: "map-scatter",
+        mode: "markers",
+        lon: [-75, 90, 43],
+        lat: [45, 0, -12],
+        marker: {
+            color: 'rgb(255,0,0)',
+            size: 20
+        }
+    }
+];
+
+gd.layout = {
+    width: 960,
+    height: 960,
+    map: {
+        domain: {
+            x: [0, 1],
+            y: [0, 1]
+        },
+        scope: 'Europe',
+        resolution: '50m',
+        projection: {
+            type: 'equirectangular',
+            rotate: [0, 0]
+        },
+        lonaxis: {
+            range: [0, 180]
+        },
+        lataxis: {
+            range: [-90, 90]
+        }
+    }
+};
+
+map.plot(gd);
+</script>
+</body>

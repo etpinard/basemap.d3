@@ -1,6 +1,8 @@
 var fs = require('fs'),
     wget = require('wget'),
-    ProgressBar = require('progress');
+    exec = require('child_process').exec;
+
+var common = require('./common');
 
 fs.readFile('./bin/config.json', 'utf8', main);
 
@@ -11,16 +13,17 @@ function main(err, configFile) {
 
     if (!fs.existsSync(config.wget_dir)) fs.mkdirSync(config.wget_dir);
 
-    var bar = new ProgressBar(
-        'Downloading Natural Earth shapefiles: [:bar] :current/:total :etas',
-        {
-            incomplete: ' ',
-            total: config.resolutions.length * config.vectors.length
-        }
+    var bar = common.makeBar(
+        'Downloading shapefiles: [:bar] :current/:total',
+        [config.resolutions, config.vectors]
     );
 
-    function bn(r, v, ext) {
-        return config.src_prefix + r + 'm_' + v.src + '.' + ext;
+    function unzip(r, v) {
+        return [
+            "unzip",
+            config.wget_dir + config.src_prefix + common.bn(r, v.src, 'zip'),
+            "-d", config.wget_dir
+        ].join(' ');
     }
 
     config.resolutions.forEach(function(r) {
@@ -29,11 +32,13 @@ function main(err, configFile) {
             var url = [
                     config.urlbase,
                     r, 'm/', v.type + '/',
-                    bn(r, v, 'zip')
+                    config.src_prefix,
+                    common.bn(r, v.src, 'zip')
                 ].join(''),
                 out = [
                     config.wget_dir,
-                    bn(r, v, 'zip')
+                    config.src_prefix,
+                    common.bn(r, v.src, 'zip')
                 ].join('');
 
             var download = wget.download(url, out, {});
@@ -44,6 +49,7 @@ function main(err, configFile) {
 
             download.on('end', function(output) {
                 bar.tick();
+                exec(unzip(r, v));
             });
 
         });

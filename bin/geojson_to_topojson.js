@@ -1,7 +1,8 @@
 var fs = require('fs'),
     topojson  = require('topojson'),
-    gju = require('geojson-utils'),
-    ProgressBar = require('progress');
+    gju = require('geojson-utils');
+
+var common = require('./common');
 
 fs.readFile('./bin/config.json', 'utf8', main);
 
@@ -10,21 +11,10 @@ function main(err, configFile) {
 
     var config = JSON.parse(configFile);
 
-    var barWrite = new ProgressBar(
-        'Writing into topojson: [:bar] :current/:total :etas',
-        {
-            incomplete: ' ',
-            total: config.resolutions.length
-        }
+    var barWrite = common.makeBar(
+        'Writing into topojson: [:bar] :current/:total',
+        [config.resolutions, config.scopes]
     );
-
-    function fn(r, v, ext) {
-        return v.name + '_' + r + 'm.' + ext;
-    }
-
-    function out(r) {
-        return 'world_' + r + 'm.json';
-    }
 
     // map all geojson properties to topojson
     function propertyTransform(feature) {
@@ -32,36 +22,37 @@ function main(err, configFile) {
     }
 
     config.resolutions.forEach(function(r) {
-        var collections = {};
+        config.scopes.forEach(function(s) {
+            var collections = {};
 
-        var barRead = new ProgressBar(
-            'Processing GeoJSON files : [:bar] :current/:total :etas',
-            {
-                incomplete: ' ',
-                total: config.vectors.length
-            }
-        );
+            var barRead = common.makeBar(
+                'Processing GeoJSON files : [:bar] :current/:total',
+                [config.vectors]
+            );
 
-        config.vectors.forEach(function(v) {
-            var d = fs.readFileSync(config.wget_dir + fn(r, v, 'json'), 'utf8'),
-                collection = JSON.parse(d);
+            config.vectors.forEach(function(v) {
+                var path = config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+                    d = fs.readFileSync(path, 'utf8'),
+                    collection = JSON.parse(d);
 
-            formatProperties(collection, v);
-            collections[v.name] = collection;
+                formatProperties(collection, v);
+                collections[v.name] = collection;
 
-            barRead.tick();
+                barRead.tick();
+            });
+
+            // TODO experiment with simplification/quantization
+            var topology = topojson.topology(collections, {
+                'verbose': true,
+                'property-transform': propertyTransform
+             });
+
+            var outPath = config.out_dir + common.out(r, s.name);
+
+            fs.writeFile(outPath, JSON.stringify(topology), function(err){
+                if (!err) barWrite.tick();
+            });
         });
-
-        // TODO experiment with simplification/quantization
-        var topology = topojson.topology(collections, {
-            'verbose': true,
-            'property-transform': propertyTransform
-         });
-
-        fs.writeFile(config.out_dir + out(r), JSON.stringify(topology), function(err){
-            if (!err) barWrite.tick();
-        });
-
     });
 
 }

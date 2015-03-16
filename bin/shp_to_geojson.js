@@ -1,7 +1,7 @@
 var fs = require('fs'),
-    unzip = require('unzip'),
-    exec = require('child_process').exec,
-    ProgressBar = require('progress');
+    exec = require('child_process').exec;
+
+var common = require('./common');
 
 fs.readFile('./bin/config.json', 'utf8', main);
 
@@ -10,42 +10,88 @@ function main(err, configFile) {
 
     var config = JSON.parse(configFile);
 
-    var bar = new ProgressBar(
-        'Converting Natural Earth shapefiles to GeoJSON: [:bar] :current/:total :etas',
-        {
-            incomplete: ' ',
-            total: config.resolutions.length * config.vectors.length
-        }
+    var bar = common.makeBar(
+        'Converting shapefiles to GeoJSON: [:bar] :current/:total',
+        [config.resolutions, config.vectors, config.scopes]
     );
 
-    function bn(r, v, ext) {
-        return config.src_prefix + r + 'm_' + v.src + '.' + ext;
-    }
+    function scopeBaseShapefile(r, s) {
+        var specs = s.specs,
+            where;
 
-    function fn(r, v, ext) {
-        return v.name + '_' + r + 'm.' + ext;
-    }
+        function getWhere(specs) {
+            return [
+                "-where \"", specs.key,
+                " IN ",
+                "('", specs.val, "')\""
+            ].join('');
+        }
 
-    // TODO handle regions!!
-    function ogr2ogr(r, v) {
+        where = getWhere(specs);
+
         return [
-            "ogr2ogr -f GeoJSON",
-            config.wget_dir + fn(r, v, 'json'),
-            config.wget_dir + bn(r, v, 'shp')
+            "ogr2ogr -overwrite",
+            where,
+            config.wget_dir + common.tn(r, s.name, specs.src, 'shp'),
+            config.wget_dir + config.src_prefix + common.bn(r, specs.src, 'shp')
        ].join(' ');
     }
 
-    config.resolutions.forEach(function(r) {
+    function convertToGeoJSON(r, s, v, clip) {
+        var specs = s.specs,
+            opt;
+
+        function getOpt(r, s, v, specs) {
+            var key,
+                val;
+
+            if (v.src===specs.src) {
+                key = '-where';
+                val = ["\"", specs.key, " IN ", "('", specs.val, "')\""].join('');
+            }
+            else if (v.scopeWith==='src') {
+                key = '-clipsrc';
+                val = config.wget_dir + common.tn(r, s.name, specs.src, 'shp');
+            }
+            else if (v.scopeWith==='bounds') {
+                key = '-clipsrc';
+                val = specs.bounds.join(' ');
+            }
+            return [key, val].join(' ');
+        }
+
+        if (clip && specs && specs.src!==v.name) {
+            opt = getOpt(r, s, v, specs);
+        }
+        else opt = '';
+
+        return [
+            "ogr2ogr -f GeoJSON",
+            opt,
+            config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+            config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp')
+        ].join(' ');
+    }
+
+    function vectorLoop(r, s, clip) {
         config.vectors.forEach(function(v) {
-
-            var unzipper = fs.createReadStream(config.wget_dir + bn(r, v, 'zip'))
-                             .pipe(unzip.Extract({ path: config.wget_dir }));
-
-            unzipper.on('finish', function() {
-                exec(ogr2ogr(r, v), function() {
-                    bar.tick();
-                });
+            exec(convertToGeoJSON(r, s, v, clip), function() {
+                bar.tick();
             });
+        });
+    }
+
+    config.resolutions.forEach(function(r) {
+        config.scopes.forEach(function(s) {
+
+            if (s.specs===false) {
+                vectorLoop(r, s, false);
+            }
+            else {
+                exec(scopeBaseShapefile(r, s), function() {
+                    vectorLoop(r, s, true);
+                });
+            }
 
         });
     });

@@ -12,38 +12,74 @@
             "type": "physical",
             "src": "coastline",
             "name": "coastlines",
-            "ids": false
+            "ids": false,
+            "scopeWith": "bounds"
         },
         {
             "type": "physical",
             "src": "land",
             "name": "land",
-            "ids": false
+            "ids": false,
+            "scopeWith": "bounds"
         },
         {
             "type": "physical",
             "src": "ocean",
             "name": "ocean",
-            "ids": false
+            "ids": false,
+            "scopeWith": "bounds"
+        },
+        {
+            "type": "physical",
+            "src": "lakes",
+            "name": "lakes",
+            "ids": false,
+            "scopeWith": "src"
+        },
+        {
+            "type": "physical",
+            "src": "rivers_lake_centerlines",
+            "name": "rivers",
+            "ids": false,
+            "scopeWith": "src"
         },
         {
             "type": "cultural",
             "src": "admin_0_countries",
             "name": "countries",
-            "ids": ["iso_a3"]
+            "ids": ["iso_a3"],
+            "scopeWith": "bounds"
         },
         {
             "type": "cultural",
             "src": "admin_1_states_provinces",
             "name": "subunits",
-            "ids": ["postal"]
+            "ids": ["postal"],
+            "scopeWith": "bounds"
         }
     ],
-    "regions": [
+    "scopes": [
         {
-            "name": "USA",
-            "ids": ["USA"]
+            "name": "world",
+            "specs": false
         },
-        {}
+        {
+            "name": "usa",
+            "specs": {
+                "src": "admin_0_countries",
+                "key": "iso_a3",
+                "val": "USA",
+                "bounds": [-180, 20, -50, 80]
+            }
+        },
+        {
+            "name": "europe",
+            "specs": {
+                "src": "admin_0_countries",
+                "key": "continent",
+                "val": "Europe",
+                "bounds": [-30, 20, 80, 85]
+            }
+        }
     ]
 }

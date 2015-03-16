@@ -1,66 +1,167 @@
 var map = {};
 
+map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
+    if (!(astr in containerIn)) {
+        containerOut[astr] = dflt;
+    }
+    else {
+        containerOut[astr] = containerIn[astr];
+    }
+    return containerOut[astr];
+};
+
+map.coerceNest = function coerceNest(containerIn, containerOut, nest, astr, dflt) {
+    if (!(nest in containerIn)) containerIn[nest] = {};
+    if (!(nest in containerOut)) containerOut[nest] = {};
+    return map.coerce(containerIn[nest], containerOut[nest], astr, dflt);
+};
+
+map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
+    var layout = gd.layout,
+        fullLayout = {},
+        mapLayout = layout.map,
+        mapFullLayout = {};
+
+    function coerce(astr, dflt) {
+        return map.coerce(layout, fullLayout, astr, dflt);
+    }
+
+    function coerceMap(astr, dflt) {
+        return map.coerce(mapLayout, mapFullLayout, astr, dflt);
+    }
+
+    function coerceMapNest(nest, astr, dflt) {
+        return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
+    }
+
+    coerce('width', 960);
+    coerce('height', 960);
+
+    coerceMap('domain', {x: [0, 1], y: [0, 1]});
+    var scope = coerceMap('scope', 'world');
+    var resolution = coerceMap('resolution', '110m');
+    coerceMap('_topojson', scope + '_' + resolution);
+
+    coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
+
+    var type = coerceMapNest('projection', 'type', 'equirectangular');
+
+    // Is this more intuitive?
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
+    coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
+
+    var isOrthographic = coerceMapNest('projection', '_isOrthographic',
+                                       (type==='orthographic'));
+
+    coerceMapNest('projection', 'parallels', null);
+
+    coerceMap('showcoastlines', (scope==='world'));
+    coerceMap('coastlinescolor', 'black');
+    coerceMap('coastlineswidth', 2);
+
+    coerceMap('showland', false);
+    coerceMap('landfillcolor', '#3B5323');
+
+    coerceMap('showocean', false);
+    coerceMap('oceanfillcolor', '#3399FF');
+
+    coerceMap('showlakes', false);
+    coerceMap('lakesfillcolor', '#3399FF');
+
+    coerceMap('showrivers', false);
+    coerceMap('riverslinecolor', '#3399FF');
+    coerceMap('riverslinewidth', 1);
+
+    coerceMap('showcountries', (scope!=='world'));
+    coerceMap('countrieslinecolor', '#aaa');
+    coerceMap('countrieslinewidth', 1.5);
+
+    coerceMap('showsubunits', false);
+    coerceMap('subunitslinecolor', '#aaa');
+    coerceMap('subunitslinewidth', 1);
+
+    coerceMapNest('lonaxis', 'range', [-180, 180]);
+    coerceMapNest('lataxis', 'range', [-90, 90]);
+
+    fullLayout.map = mapFullLayout;
+    gd._fullLayout = fullLayout;
+};
+
 map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
-        fullData = [],
+        fullLayout = gd.fullLayout,
+        Ntrace = data.length,
+        fullData = new Array(Ntrace),
         trace,
-        marker;
+        fullTrace,
+        marker,
+        fullMarker;
 
-    fullData = data;  // (shortcut) should coerce instead
+    function coerce(astr, dflt) {
+        return map.coerce(trace, fullTrace, astr, dflt);
+    }
 
-    for (var i = 0; i < data.length; i++) {
-        trace = fullData[i];
+    function coerceNest(nest, astr, dflt) {
+        return map.coerceNest(trace, fullTrace, nest, astr, dflt);
+    }
 
-        if (!('mode' in trace)) trace.mode = 'markers';
-        if (!('locmode' in trace)) trace.locmode = 'ISO-3';
+    function coerceMarkerNest(nest, astr, dflt) {
+        return map.coerceNest(trace.marker, fullTrace.marker, nest, astr, dflt);
+    }
 
-        if (!('marker' in trace)) trace.marker = {};
+    for (var i = 0; i < Ntrace; i++) {
+        trace = data[i];
+        fullTrace = {};
+        fullMarker = {};
 
-        marker = trace.marker;
-        if (!('size' in marker)) marker.size = 20;
-        if (!('color' in marker)) marker.color = 'rgb(255, 0, 0)';
-        if (!('symbol' in marker)) marker.symbol = 'circle';
+        coerce('type', 'map-scatter');
 
-        if (!('line' in trace)) trace.line = {};
+        coerce('lon', null);
+        coerce('lat', null);
+        coerce('z', null);
+        coerce('loc', null);
+        coerce('text', null);
 
-        line = trace.line;
-        if (!('color' in line)) line.color = 'rgb(0, 0, 255)';
-        if (!('width' in line)) line.width = 4;
+        coerce('mode', 'markers');
+        coerce('locmode', 'ISO-3');
 
-        if (!('text' in trace)) trace.text = [];
+        coerceNest('marker', 'size', 20);
+        coerceNest('marker', 'color', 'rgb(255, 0, 0)');
+        coerceNest('marker', 'symbol', 'circle');
 
+        coerceMarkerNest('line', 'color', '#fff');
+        coerceMarkerNest('line', 'width', 2);
+
+        coerceNest('line', 'color', 'rgb(0, 0, 255)');
+        coerceNest('line', 'width', '4');
+
+        fullData[i] = fullTrace;
     }
 
     gd._fullData = fullData;
 };
 
-map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
-    var layout = gd.layout,
-        projObjIn = layout.map.projection;
-        fullLayout = {};
+map.setPosition = function(gd) {
+    var fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
+        mapDomain = mapLayout.domain,
+        projLayout = mapLayout.projection,
+        isOrthographic = projLayout._isOrthographic,
+        lonaxisRange = mapLayout.lonaxis.range;
 
-    fullLayout = layout;  // (shortcut) should coerce instead
+    // TODO
+    projLayout._translate = [fullLayout.width/2, fullLayout.height/2];
 
-    fullLayout._isOrthographic = (projObjIn.type === 'orthographic');
+    mapLayout._length = fullLayout.width * (mapDomain.x[1] - mapDomain.x[0]);
+//     mapLayout._m = mapLayout._length * 360 / (lonaxisRange[1] - lonaxisRange[0]);
+    mapLayout._m = mapLayout._length;
 
-    // TODO something smarter
-    fullLayout.map.projection._translate = [layout.width / 2,
-                                            layout.height / 2];
-
-    // Is this more intuitive ?
-    fullLayout.map.projection._rotate = [-projObjIn.rotate[0],
-                                         -projObjIn.rotate[1]];
-
-    function getScale() {
-        // TODO something smarter
-        if (projObjIn.type === 'orthographic') return 250;
-        else return (layout.width + 1) / 2 / Math.PI;
+    if (isOrthographic) {
+        projLayout._scale = 250;
     }
-    fullLayout.map.projection._scale = getScale();
-
-    if (!('parallels' in projObjIn)) fullLayout.map.projection.parallels = false;
-
-    gd._fullLayout = fullLayout;
+    else {
+        projLayout._scale = (mapLayout._m + 1) / 2 / Math.PI;
+    }
 };
 
 map.isScatter = function(trace) {
@@ -88,17 +189,21 @@ map.makeCalcdata = function makeCalcdata(gd) {
         cd = new Array(fullData.length),
         cdi;
 
+    function arrOrNum(x, i) {
+        return Array.isArray(x) ? x[i] : x;
+    }
+
     function getFromGeoJSON(trace) {
-        var world = map.world,
+        var topo = map.topo,
             locmodeToLayer = {
                 "ISO-3": "countries",
                 "USA-states": "subunits"
             },
             layer = locmodeToLayer[trace.locmode],
-            obj = world.objects[layer];
+            obj = topo.objects[layer];
 
         return {
-            features: topojson.feature(world, obj).features,
+            features: topojson.feature(topo, obj).features,
             ids: obj.properties.ids
         };
     }
@@ -109,12 +214,12 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
     function calcScatter(trace) {
         var marker = trace.marker,
-            cdi = [],
+            cdi = [],  // use push as cdi.length =< N
             N,
             getLonLat,
             lonlat;
 
-        if ('loc' in trace) {
+        if (trace.loc) {
             var fromGeoJSON = getFromGeoJSON(trace),
                 features = fromGeoJSON.features,
                 ids = fromGeoJSON.ids,
@@ -125,7 +230,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
             getLonLat = function(trace, j) {
                 indexOfId = ids.indexOf(trace.loc[j]);
                 if (indexOfId===-1) return;
-                return features[indexOfId].properties.centroid
+                return features[indexOfId].properties.centroid;
             };
         } else {
             N = Math.min(trace.lon.length, trace.lat.length);
@@ -141,10 +246,12 @@ map.makeCalcdata = function makeCalcdata(gd) {
             cdi.push({
                 lon: lonlat[0],
                 lat: lonlat[1],
-                ms: Array.isArray(marker.size) ? marker.size[j] : marker.size,
-                mc: Array.isArray(marker.color) ? marker.color[j] : marker.color,
-                mx: Array.isArray(marker.symbol) ? marker.symbol[j] : marker.symbol,
-                tx: trace.text[j]
+                ms: arrOrNum(marker.size, j),
+                mc: arrOrNum(marker.color, j),
+                mx: arrOrNum(marker.symbol, j),
+                mlc: arrOrNum(marker.line.color, j),
+                mlw: arrOrNum(marker.line.width, j),
+                tx: trace.text!==null ? trace.text[j] : ''
             });
         }
 
@@ -156,7 +263,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
             fromGeoJSON = getFromGeoJSON(trace),
             features = fromGeoJSON.features,
             ids = fromGeoJSON.ids,
-            cdi = [],
+            cdi = [],  // use push as cdi.length =< N
+            markerLine = trace.marker.line,
             indexOfId,
             feature;
 
@@ -165,7 +273,11 @@ map.makeCalcdata = function makeCalcdata(gd) {
             if (indexOfId===-1) continue;
 
             feature = features[indexOfId];
+
             feature.z = trace.z[j];
+            feature.mlc = arrOrNum(markerLine.color, j);
+            feature.mlw = arrOrNum(markerLine.width, j);
+
             cdi.push(feature);
         }
 
@@ -188,51 +300,47 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
 map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
-        mapObj = fullLayout.map,
-        projObj = mapObj.projection,
-        lonaxisObj = mapObj.lonaxis,
-        lataxisObj = mapObj.lataxis,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection,
+        lonaxisLayout = mapLayout.lonaxis,
+        lataxisLayout = mapLayout.lataxis,
         projection;
 
-    projection = d3.geo[projObj.type]()
-        .scale(projObj._scale)
-        .translate(projObj._translate)
+    projection = d3.geo[projLayout.type]()
+        .scale(projLayout._scale)
+        .translate(projLayout._translate)
         .precision(0.1)
-        .rotate(projObj._rotate);
+        .rotate(projLayout._rotate);
 
-    if (projObj.parallels) projection.parallels(projObj.parallels);
+    if (projLayout.parallels) projection.parallels(projLayout.parallels);
 
-    if (fullLayout._isOrthographic) projection.clipAngle(90);
+    if (projLayout._isOrthographic) projection.clipAngle(90);
 
-    function getClipExtent() {
-        var lonRange = lonaxisObj.range,
-            latRange = lataxisObj.range,
-            projRotateLon = projObj.rotate[0],
-            leftLim =  projRotateLon - 180,
-            rightLim = projRotateLon + 180,
-            lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
-            lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
-
-        // limit lon range to [leftLim, rightLim] with lon0 < lon1
-        // TODO same for lat !!
-
-        return [projection([lon0, latRange[1]]),
-                projection([lon1, latRange[0]])];
-    }
-    if (lonaxisObj.range &&
-            lataxisObj.range) projection.clipExtent(getClipExtent());
+//     function getClipExtent() {
+//         var lonRange = lonaxisLayout.range,
+//             latRange = lataxisLayout.range,
+//             projRotateLon = projLayout.rotate[0],
+//             leftLim =  projRotateLon - 180,
+//             rightLim = projRotateLon + 180,
+//             lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
+//             lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
+//
+//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
+//         // TODO same for lat !!
+//
+//         return [projection([lon0, latRange[1]]),
+//                 projection([lon1, latRange[0]])];
+//     }
+//     if (lonaxisLayout.range &&
+//             lataxisLayout.range) projection.clipExtent(getClipExtent());
 
     return projection;
 };
 
-map.setScale = function() {
-
-};
-
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
-        projObj = fullLayout.map.projection,
-        isOrthographic = fullLayout._isOrthographic;
+        projLayout = fullLayout.map.projection,
+        isOrthographic = projLayout._isOrthographic;
 
     var svg = d3.select("body").append("svg")
         .attr("width", gd.layout.width)
@@ -298,7 +406,7 @@ map.makeSVG = function makeSVG(gd) {
         });
 
     var zoom = d3.behavior.zoom()
-        .scale(projObj._scale)
+        .scale(projLayout._scale)
         .scaleExtent([100, 1000])
         .on("zoom", function() {
             console.log('zooming');
@@ -327,32 +435,37 @@ map.makeSVG = function makeSVG(gd) {
 };
 
 map.init = function init(gd) {
-    var world = map.world,
+    var topo = map.topo,
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
+        gBasemap,
         gData;
 
-    // TODO add support for lake/rivers
-    map.fillLayers = ['ocean', 'land'];
-    map.lineLayers = ['subunits', 'countries', 'coastlines'];
-    map.baseLayers = map.fillLayers.concat(map.lineLayers);
+    map.fillLayers = ['ocean', 'land', 'lakes'];
+    map.lineLayers = ['subunits', 'countries', 'coastlines', 'rivers'];
+
+//     map.baselayers = ['ocean', 'land', 'subunits', 'countries', 'coastlines'];
+//     map.baselayersOverChoropleth = ['rivers', 'lakes'];
+
+    map.baselayers = map.fillLayers.concat(map.lineLayers);
 
     map.svg = map.makeSVG(gd);
 
-    // basemap layers
-    function plotBaseLayer(layer) {
+    function plotBaseLayer(s, layer) {
         if (fullLayout.map['show' + layer]===true) {
-            map.svg.select("g.basemap")
-              .append("g")
-                .datum(topojson.feature(world,
-                                        world.objects[layer]))
+             s.append("g")
+                .datum(topojson.feature(topo,
+                                        topo.objects[layer]))
                 .attr("class", layer)
               .append("path")
                 .attr("class", layer);
         }
     }
-    for (var i = 0; i < map.baseLayers.length; i++) {
-        plotBaseLayer(map.baseLayers[i]);
+
+    //
+    gBasemap = map.svg.select("g.basemap");
+    for (var i = 0;  i < map.baselayers.length; i++) {
+        plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
     // grid layers
@@ -380,11 +493,12 @@ map.init = function init(gd) {
                 s.selectAll("path.choroplethloc")
                     .data(Object)
                 .enter().append("path")
-                  .attr("class", "choroplethloc");
+                  .attr("class", "choroplethloc")
+                  .attr("fill-rule", "nonzero");
             }
-        });
+    });
 
-    // lines
+    // scatter lines
     gData.append("path")
         .each(function(d) {
             var s = d3.select(this),
@@ -397,7 +511,7 @@ map.init = function init(gd) {
             }
         });
 
-    // markers and text
+    // scatter markers and text
     gData.append("g")
         .attr("class", "points")
         .each(function(d) {
@@ -443,8 +557,10 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
 
 map.drawPaths = function drawPaths() {
     var projection = map.projection,
-        isOrthographic = gd._fullLayout._isOrthographic,
         path = d3.geo.path().projection(projection);
+
+    var fullLayout = gd._fullLayout,
+        isOrthographic = fullLayout.map.projection._isOrthographic;
 
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
@@ -495,7 +611,10 @@ map.pointStyle = function pointStyle(s, trace) {
         };
 
     s.each(function(d) {
-        d3.select(this).attr("fill", d.mc || marker.color);
+        d3.select(this)
+            .attr("fill", d.mc || marker.color)
+            .attr("stroke", d.mlc || marker.line.color)
+            .attr("stroke-width", d.mlw || marker.line.width);
     });
 
     s.attr('d', function(d){
@@ -525,21 +644,24 @@ map.textPointStyle = function textPointStyle(s, trace) {
 };
 
 map.style = function style(gd) {
-    var mapObj = gd._fullLayout.map;
+    var mapLayout = gd._fullLayout.map;
 
     map.fillLayers.forEach(function(layer){
         d3.select("path." + layer)
-            .attr("fill", mapObj[layer + 'fillcolor']);
+            .attr("stroke", "none")
+            .attr("fill", mapLayout[layer + 'fillcolor']);
     });
 
     map.lineLayers.forEach(function(layer){
         var s = d3.select("path." + layer);
-        if (layer!=='coastlines') layer += 'line';
-        s.attr("stroke", mapObj[layer + 'color'])
-         .attr("stroke-width", mapObj[layer + 'width']);
+        if (layer!=='coastlines') layer += 'line';  // coastline is an exception
+
+        s.attr("fill", "none")
+         .attr("stroke", mapLayout[layer + 'color'])
+         .attr("stroke-width", mapLayout[layer + 'width']);
     });
 
-    var color = d3.scale.log()
+    var colorscale = d3.scale.log()
         .range(["hsl(62,100%,90%)", "hsl(228,30%,20%)"])
         .interpolate(d3.interpolateHcl);
 
@@ -548,12 +670,16 @@ map.style = function style(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            color.domain([d3.quantile(trace.z, 0.01),  // TODO generalize
-                          d3.quantile(trace.z, 0.99)]);
+            // TODO generalize
+            colorscale.domain([d3.quantile(trace.z, 0.01),
+                               d3.quantile(trace.z, 0.99)]);
+
             s.selectAll("path.choroplethloc")
                 .each(function(d) {
                     var s  = d3.select(this);
-                    s.attr("fill", function(d) { return color(d.z); });
+                    s.attr("fill", function(d) { return colorscale(d.z); })
+                     .attr("stroke", d.mlc || marker.line.color)
+                     .attr("stroke-width", d.mlw || marker.line.width);
                 });
         });
 
@@ -571,12 +697,15 @@ map.style = function style(gd) {
 
 map.plot = function plot(gd) {
 
+    map.supplyLayoutDefaults(gd);  // some trace attributes depend on layout
     map.supplyDefaults(gd);
-    map.supplyLayoutDefaults(gd);
+    map.setPosition(gd);
 
-    d3.json("../raw/world_110m.json", function(error, world) {
+    var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 
-        map.world = world;
+    d3.json(topojsonPath, function(error, topo) {
+
+        map.topo = topo;
         map.makeCalcdata(gd);
         map.projection = map.makeProjection(gd);
 

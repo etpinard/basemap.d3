@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../src/basemap.css" />
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="../src/map.js"></script>
+<script>
+var gd = {};
+
+gd.data = [
+    {
+        type: "choropleth",
+        loc: ["CAN", "USA", "AUS", "FRA"],
+        z: [80, 20, 90, 60],
+        marker: {
+            line: {
+                color: ["#359441", "#943588", "#469DE8", "#E89146"],
+                width: [1, 3, 2, 1]
+            }
+        }
+
+    },
+    {
+        type: "map-scatter",
+        mode: "lines",
+        lon: [-77, 116],
+        lat: [39, 24],
+        line: {
+            color: 'rgb(0, 255, 255)',
+            width: 5
+        }
+    },
+    {
+        type: "map-scatter",
+        mode: "markers",
+        lon: [-75, 90, 43],
+        lat: [45, 0, -12],
+        marker: {
+            color: 'rgb(255,0,0)',
+            size: 20
+        }
+    }
+];
+
+gd.layout = {
+    width: 960,
+    height: 960,
+    map: {
+        projection: {
+            type: 'mercator',
+            rotate: [0, 0]
+        },
+        showland: true,
+        showcoastlines: false,
+//         showrivers: true,
+//         showlakes: true,
+//         showcountries: true,
+        lonaxis: {
+            range: [0, 180]
+        },
+        lataxis: {
+            range: [-90, 90]
+        }
+    }
+};
+
+map.plot(gd);
+</script>
+</body>

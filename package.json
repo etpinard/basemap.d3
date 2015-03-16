@@ -10,7 +10,6 @@
     "progress": "~1.1.8",
     "wget": "0.0.1",
     "topojson": "~1.6.18",
-    "unzip": "~0.1.11",
     "geojson-utils": "~1.1.0"
   },
   "devDependencies": {},

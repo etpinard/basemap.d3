@@ -129,7 +129,7 @@ map.supplyDefaults = function supplyDefaults(gd) {
         coerceNest('marker', 'color', 'rgb(255, 0, 0)');
         coerceNest('marker', 'symbol', 'circle');
 
-        coerceMarkerNest('line', 'color', '#fff');
+        coerceMarkerNest('line', 'color', 'black');
         coerceMarkerNest('line', 'width', 2);
 
         coerceNest('line', 'color', 'rgb(0, 0, 255)');
@@ -439,15 +439,17 @@ map.init = function init(gd) {
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
         gBasemap,
-        gData;
+        gData,
+        gChoropleth,
+        gBasemapOverChoropleth,
+        hasChoropleth = false,
+        i;
 
     map.fillLayers = ['ocean', 'land', 'lakes'];
     map.lineLayers = ['subunits', 'countries', 'coastlines', 'rivers'];
 
-//     map.baselayers = ['ocean', 'land', 'subunits', 'countries', 'coastlines'];
-//     map.baselayersOverChoropleth = ['rivers', 'lakes'];
-
     map.baselayers = map.fillLayers.concat(map.lineLayers);
+    map.baselayersOverChoropleth = ['rivers', 'lakes'];
 
     map.svg = map.makeSVG(gd);
 
@@ -462,9 +464,9 @@ map.init = function init(gd) {
         }
     }
 
-    //
+    // baselayers
     gBasemap = map.svg.select("g.basemap");
-    for (var i = 0;  i < map.baselayers.length; i++) {
+    for (i = 0;  i < map.baselayers.length; i++) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
@@ -482,7 +484,7 @@ map.init = function init(gd) {
         .attr("class", "trace");
 
     // choropleth
-    gData.append("g")
+    gChoropleth = gData.append("g")
         .attr("class", "choropleth")
         .each(function(d) {
             var s = d3.select(this),
@@ -490,13 +492,26 @@ map.init = function init(gd) {
 
             if (!map.isChoropleth(trace)) s.remove();
             else {
+                hasChoropleth = true;
                 s.selectAll("path.choroplethloc")
                     .data(Object)
                 .enter().append("path")
-                  .attr("class", "choroplethloc")
-                  .attr("fill-rule", "nonzero");
+                  .attr("class", "choroplethloc");
             }
     });
+
+    // some baselayers are drawn over choropleth
+    if (hasChoropleth) {
+        gBasemapOverChoropleth = gChoropleth.append("g")
+            .attr("class", "basemapoverchoropleth");
+        for (i = 0;  i < map.baselayersOverChoropleth.length; i++) {
+            // delete existing baselayer
+            gBasemap.select("." + map.baselayersOverChoropleth[i]).remove();
+            // embed new baselayer into trace element
+            plotBaseLayer(gBasemapOverChoropleth,
+                          map.baselayersOverChoropleth[i]);
+        }
+    }
 
     // scatter lines
     gData.append("path")
@@ -587,6 +602,8 @@ map.drawPaths = function drawPaths() {
 
     var gData = map.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
+        .attr("d", path);
+    gData.selectAll("g.basemapoverchoropleth path")
         .attr("d", path);
     gData.selectAll("path.js-line")
         .attr("d", path);

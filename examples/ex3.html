@@ -17,7 +17,11 @@ gd.data = [
         marker: {
             color: ["#359441", "#943588", "#E89146", "#469DE8"],
             size: [100, 30, 40, 30],
-            symbol: ['circle', 'square', 'circle', 'square']
+            symbol: ['circle', 'square', 'circle', 'square'],
+            line: {
+                color: ["#469DE8", "#E89146", "#943588", "#359441"],
+                width: [12, 3, 5, 10]
+            }
         },
         text: ['YUL', 'LHR', 'NRT', 'SFO', 'YUL']
     }
@@ -27,17 +31,9 @@ gd.layout = {
     width: 960,
     height: 960,
     map: {
-        domain: {
-            x: [0, 1],
-            y: [0, 1]
-        },
-        resolution: '110m',
-        region: 'world',
-        //
         projection: {
             type: 'equirectangular',
             rotate: [-75, 0]
-//             parallels: [0, 62],  // for certain projections
         },
         //
         showcoastlines: true,
@@ -46,17 +42,6 @@ gd.layout = {
         //
         showland: true,
         landfillcolor: "#F4A460",
-        //
-        showocean: false,
-        oceanfillcolor: "#3399FF",
-        //
-        showcountries: false,
-        countrieslinecolor: "#aaa",
-        countrieslinewidth: 1,
-        //
-        showsubunits: false,
-        subunitslinecolor: "#aaa",
-        subunitslinewidth: 1,
         //
         lonaxis: {
 //             range: [-180, 180],

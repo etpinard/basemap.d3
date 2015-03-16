@@ -45,9 +45,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     var type = coerceMapNest('projection', 'type', 'equirectangular');
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     // Is this more intuitive?
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
     coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
 
     var isOrthographic = coerceMapNest('projection', '_isOrthographic',
@@ -89,10 +89,13 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
 map.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
+        fullLayout = gd.fullLayout,
         Ntrace = data.length,
         fullData = new Array(Ntrace),
         trace,
-        fullTrace;
+        fullTrace,
+        marker,
+        fullMarker;
 
     function coerce(astr, dflt) {
         return map.coerce(trace, fullTrace, astr, dflt);
@@ -102,9 +105,14 @@ map.supplyDefaults = function supplyDefaults(gd) {
         return map.coerceNest(trace, fullTrace, nest, astr, dflt);
     }
 
+    function coerceMarkerNest(nest, astr, dflt) {
+        return map.coerceNest(trace.marker, fullTrace.marker, nest, astr, dflt);
+    }
+
     for (var i = 0; i < Ntrace; i++) {
         trace = data[i];
         fullTrace = {};
+        fullMarker = {};
 
         coerce('type', 'map-scatter');
 
@@ -120,6 +128,9 @@ map.supplyDefaults = function supplyDefaults(gd) {
         coerceNest('marker', 'size', 20);
         coerceNest('marker', 'color', 'rgb(255, 0, 0)');
         coerceNest('marker', 'symbol', 'circle');
+
+        coerceMarkerNest('line', 'color', '#fff');
+        coerceMarkerNest('line', 'width', 2);
 
         coerceNest('line', 'color', 'rgb(0, 0, 255)');
         coerceNest('line', 'width', '4');
@@ -178,6 +189,10 @@ map.makeCalcdata = function makeCalcdata(gd) {
         cd = new Array(fullData.length),
         cdi;
 
+    function arrOrNum(x, i) {
+        return Array.isArray(x) ? x[i] : x;
+    }
+
     function getFromGeoJSON(trace) {
         var topo = map.topo,
             locmodeToLayer = {
@@ -231,9 +246,11 @@ map.makeCalcdata = function makeCalcdata(gd) {
             cdi.push({
                 lon: lonlat[0],
                 lat: lonlat[1],
-                ms: Array.isArray(marker.size) ? marker.size[j] : marker.size,
-                mc: Array.isArray(marker.color) ? marker.color[j] : marker.color,
-                mx: Array.isArray(marker.symbol) ? marker.symbol[j] : marker.symbol,
+                ms: arrOrNum(marker.size, j),
+                mc: arrOrNum(marker.color, j),
+                mx: arrOrNum(marker.symbol, j),
+                mlc: arrOrNum(marker.line.color, j),
+                mlw: arrOrNum(marker.line.width, j),
                 tx: trace.text!==null ? trace.text[j] : ''
             });
         }
@@ -247,6 +264,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
             features = fromGeoJSON.features,
             ids = fromGeoJSON.ids,
             cdi = [],  // use push as cdi.length =< N
+            markerLine = trace.marker.line,
             indexOfId,
             feature;
 
@@ -255,7 +273,11 @@ map.makeCalcdata = function makeCalcdata(gd) {
             if (indexOfId===-1) continue;
 
             feature = features[indexOfId];
+
             feature.z = trace.z[j];
+            feature.mlc = arrOrNum(markerLine.color, j);
+            feature.mlw = arrOrNum(markerLine.width, j);
+
             cdi.push(feature);
         }
 
@@ -589,7 +611,10 @@ map.pointStyle = function pointStyle(s, trace) {
         };
 
     s.each(function(d) {
-        d3.select(this).attr("fill", d.mc || marker.color);
+        d3.select(this)
+            .attr("fill", d.mc || marker.color)
+            .attr("stroke", d.mlc || marker.line.color)
+            .attr("stroke-width", d.mlw || marker.line.width);
     });
 
     s.attr('d', function(d){
@@ -623,17 +648,20 @@ map.style = function style(gd) {
 
     map.fillLayers.forEach(function(layer){
         d3.select("path." + layer)
+            .attr("stroke", "none")
             .attr("fill", mapLayout[layer + 'fillcolor']);
     });
 
     map.lineLayers.forEach(function(layer){
         var s = d3.select("path." + layer);
         if (layer!=='coastlines') layer += 'line';  // coastline is an exception
-        s.attr("stroke", mapLayout[layer + 'color'])
+
+        s.attr("fill", "none")
+         .attr("stroke", mapLayout[layer + 'color'])
          .attr("stroke-width", mapLayout[layer + 'width']);
     });
 
-    var color = d3.scale.log()
+    var colorscale = d3.scale.log()
         .range(["hsl(62,100%,90%)", "hsl(228,30%,20%)"])
         .interpolate(d3.interpolateHcl);
 
@@ -642,12 +670,16 @@ map.style = function style(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            color.domain([d3.quantile(trace.z, 0.01),  // TODO generalize
-                          d3.quantile(trace.z, 0.99)]);
+            // TODO generalize
+            colorscale.domain([d3.quantile(trace.z, 0.01),
+                               d3.quantile(trace.z, 0.99)]);
+
             s.selectAll("path.choroplethloc")
                 .each(function(d) {
                     var s  = d3.select(this);
-                    s.attr("fill", function(d) { return color(d.z); });
+                    s.attr("fill", function(d) { return colorscale(d.z); })
+                     .attr("stroke", d.mlc || marker.line.color)
+                     .attr("stroke-width", d.mlw || marker.line.width);
                 });
         });
 

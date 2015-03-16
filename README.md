@@ -9,7 +9,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 - Basemap of coastlines, land, ocean, countries, USA states, river and lakes
 - Scatter points/text and great circle paths in (lon, lat) coordintates on top of a basemap
-- Choropleth of countries
+- Choropleth of countries (with custom boundary lines)
 - Scatter points/text by locations (e.g. ISO-3)
 - Periodic panning and zoom
 - Customizable lon/lat axis ranges
@@ -17,7 +17,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 ### TODO list
 
 - Add more subunits and choropleth `locmode` values
-- Support for regions
+- Improve scopes: figure out what land / ocean / coastlines layers should be
 - Handle grid (i.e. graticules) per axis
 - Improve maps set scale (as a function of the figure size and axis range)
 

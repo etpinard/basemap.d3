@@ -4,39 +4,9 @@
     stroke-width: 5px;
 }
 
-.land {
-    stroke-width: 0px;
-}
-
-.ocean {
-    stroke-width: 0px;
-}
-
-.coastlines {
-    fill: none;
-}
-
-.rivers {
-    fill: none;
-}
-
-.countries {
-    fill: none;
-}
-
-.subunits {
-    fill: none;
-}
-
 .graticule {
     fill: none;
     stroke: #777;
     stroke-width: .5px;
     stroke-opacity: .5;
-}
-
-.js-line {
-}
-
-.point {
 }

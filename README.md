@@ -21,7 +21,6 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - Handle grid (i.e. graticules) per axis
 - Improve maps set scale (as a function of the figure size and axis range)
 
-- Draw rivers and lakes above choropleth fills
 - Fix zoom bug (zoom -> dbl click -> pan starts panning at last zoomed position)
 - ...
 

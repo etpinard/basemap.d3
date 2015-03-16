@@ -42,6 +42,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var resolution = coerceMap('resolution', '110m');
     coerceMap('_topojson', scope + '_' + resolution);
 
+    coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
+
     var type = coerceMapNest('projection', 'type', 'equirectangular');
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
@@ -53,7 +55,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     coerceMapNest('projection', 'parallels', null);
 
-    coerceMap('showcoastlines', true);
+    coerceMap('showcoastlines', (scope==='world'));
     coerceMap('coastlinescolor', 'black');
     coerceMap('coastlineswidth', 2);
 
@@ -63,14 +65,14 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('showocean', false);
     coerceMap('oceanfillcolor', '#3399FF');
 
-    coerceMap('showlakes', true);
+    coerceMap('showlakes', false);
     coerceMap('lakesfillcolor', '#3399FF');
 
-    coerceMap('showrivers', true);
+    coerceMap('showrivers', false);
     coerceMap('riverslinecolor', '#3399FF');
     coerceMap('riverslinewidth', 1);
 
-    coerceMap('showcountries', false);
+    coerceMap('showcountries', (scope!=='world'));
     coerceMap('countrieslinecolor', '#aaa');
     coerceMap('countrieslinewidth', 1.5);
 

@@ -39,12 +39,19 @@ gd.layout = {
             x: [0, 1],
             y: [0, 1]
         },
-        scope: 'Europe',
+        scope: 'europe',
         resolution: '50m',
         projection: {
-            type: 'equirectangular',
-            rotate: [0, 0]
+            type: 'conicConformal',
+            rotate: [20, 0]
         },
+//         showcoastlines: true,
+//         showocean: true,
+        showrivers: true,
+        showlakes: true,
+//         showland: true,
+//         showcountries: true,
+//         showsubunits: true,
         lonaxis: {
             range: [0, 180]
         },

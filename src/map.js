@@ -149,8 +149,12 @@ map.setPosition = function(gd) {
         isOrthographic = projLayout._isOrthographic,
         lonaxisRange = mapLayout.lonaxis.range;
 
+    var xOFFSET = 100;  // for reference
+
     // TODO
-    projLayout._translate = [fullLayout.width/2, fullLayout.height/2];
+    projLayout._translate = [xOFFSET + fullLayout.width/2, fullLayout.height/2];
+
+    projLayout._fullScale = (fullLayout.width + 1) / 2 / Math.PI;
 
     mapLayout._length = fullLayout.width * (mapDomain.x[1] - mapDomain.x[0]);
 //     mapLayout._m = mapLayout._length * 360 / (lonaxisRange[1] - lonaxisRange[0]);
@@ -395,11 +399,15 @@ map.makeSVG = function makeSVG(gd) {
                     // orthographic projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
                 } else {
-                    // orthographic projections are panned
+                    // non-orthographic projections are panned
                     // by rotation along lon
-                    // and by translation along lat
                     map.projection.rotate([-o1[0], -o0[1]]);
-                    map.projection.translate([t0[0], t1[1]]);
+                    // and by translation along lat
+                    // if scale is greater than fullScale
+                    // TODO more conditions?
+                    if (map.projection.scale() > projLayout._fullScale) {
+                        map.projection.translate([t0[0], t1[1]]);
+                    }
                 }
                 map.drawPaths(gd);
             }
@@ -407,7 +415,7 @@ map.makeSVG = function makeSVG(gd) {
 
     var zoom = d3.behavior.zoom()
         .scale(projLayout._scale)
-        .scaleExtent([100, 1000])
+        .scaleExtent([projLayout._fullScale, 1000])
         .on("zoom", function() {
             console.log('zooming');
             console.log(map.projection.scale());

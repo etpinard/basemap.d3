@@ -34,8 +34,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
     }
 
-    coerce('width', 960);
-    coerce('height', 960);
+    coerce('width', 700);
+    coerce('height', 450);
 
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
     var scope = coerceMap('scope', 'world');
@@ -349,6 +349,16 @@ map.makeSVG = function makeSVG(gd) {
     var svg = d3.select("body").append("svg")
         .attr("width", fullLayout.width)
         .attr("height", fullLayout.height);
+
+    // rectangle around svg container
+    svg.append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", fullLayout.width)
+        .attr("height", fullLayout.height)
+        .attr("fill", "none")
+        .attr("stroke", "black")
+        .attr("stroke-width", 4);
 
     svg.append("g")
         .classed("basemap", true);

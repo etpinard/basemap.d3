@@ -337,15 +337,14 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
-
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         projLayout = fullLayout.map.projection,
         isOrthographic = projLayout._isOrthographic;
 
     var svg = d3.select("body").append("svg")
-        .attr("width", gd.layout.width)
-        .attr("height", gd.layout.height);
+        .attr("width", fullLayout.width)
+        .attr("height", fullLayout.height);
 
     svg.append("g")
         .classed("basemap", true);

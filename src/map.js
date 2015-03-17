@@ -164,48 +164,6 @@ map.setPosition = function(gd) {
     }
 };
 
-map.makeProjection = function makeProjection(gd) {
-    var fullLayout = gd._fullLayout,
-        mapLayout = fullLayout.map,
-        projLayout = mapLayout.projection,
-        lonaxisLayout = mapLayout.lonaxis,
-        lataxisLayout = mapLayout.lataxis,
-        projection;
-
-    projection = d3.geo[projLayout.type]()
-        .scale(projLayout._scale)
-        .translate(projLayout._translate)
-        .precision(0.1);
-
-    if (projLayout._rotate) projection.rotate(projLayout._rotate);
-
-    if (projLayout.parallels) projection.parallels(projLayout.parallels);
-
-    if (projLayout._isOrthographic) projection.clipAngle(90);
-
-//     if (projLayout._clipExtent) projection.clipExtent(projLayout._clipExtent);
-
-//     function getClipExtent() {
-//         var lonRange = lonaxisLayout.range,
-//             latRange = lataxisLayout.range,
-//             projRotateLon = projLayout.rotate[0],
-//             leftLim =  projRotateLon - 180,
-//             rightLim = projRotateLon + 180,
-//             lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
-//             lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
-// //
-//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
-//         // TODO same for lat !!
-// 
-//         return [projection([lon0, latRange[1]]),
-//                 projection([lon1, latRange[0]])];
-//     }
-//     if (lonaxisLayout.range &&
-//             lataxisLayout.range) projection.clipExtent(getClipExtent());
-
-    map.projection = projection;
-};
-
 map.isScatter = function(trace) {
     return (trace.type === "map-scatter");
 };
@@ -340,6 +298,45 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
+map.makeProjection = function makeProjection(gd) {
+    var fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection,
+        lonaxisLayout = mapLayout.lonaxis,
+        lataxisLayout = mapLayout.lataxis,
+        projection;
+
+    projection = d3.geo[projLayout.type]()
+        .scale(projLayout._scale)
+        .translate(projLayout._translate)
+        .precision(0.1)
+        .rotate(projLayout._rotate);
+
+    if (projLayout.parallels) projection.parallels(projLayout.parallels);
+
+    if (projLayout._isOrthographic) projection.clipAngle(90);
+
+//     function getClipExtent() {
+//         var lonRange = lonaxisLayout.range,
+//             latRange = lataxisLayout.range,
+//             projRotateLon = projLayout.rotate[0],
+//             leftLim =  projRotateLon - 180,
+//             rightLim = projRotateLon + 180,
+//             lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
+//             lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
+//
+//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
+//         // TODO same for lat !!
+//
+//         return [projection([lon0, latRange[1]]),
+//                 projection([lon1, latRange[0]])];
+//     }
+//     if (lonaxisLayout.range &&
+//             lataxisLayout.range) projection.clipExtent(getClipExtent());
+
+    return projection;
+};
+
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         projLayout = fullLayout.map.projection,
@@ -423,7 +420,7 @@ map.makeSVG = function makeSVG(gd) {
         // -> dblclick -> translate start at last zoomed in position
         console.log('double clicking');
         console.log(map.projection.scale());
-        map.makeProjection(gd);
+        map.projection = map.makeProjection(gd);
         console.log(map.projection.scale());
         map.drawPaths(gd);
     };
@@ -719,9 +716,7 @@ map.plot = function plot(gd) {
 
     map.supplyLayoutDefaults(gd);  // some trace attributes depend on layout
     map.supplyDefaults(gd);
-
     map.setPosition(gd);
-    map.makeProjection(gd);
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 
@@ -729,6 +724,7 @@ map.plot = function plot(gd) {
 
         map.topo = topo;
         map.makeCalcdata(gd);
+        map.projection = map.makeProjection(gd);
 
         map.init(gd);
         map.style(gd);

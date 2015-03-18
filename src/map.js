@@ -81,8 +81,21 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    coerceMapNest('lonaxis', 'range', [-180, 180]);
-    coerceMapNest('lataxis', 'range', [-90, 90]);
+    var lonrange = coerceMapNest('lonaxis', 'range', [-180, 180]);
+    coerceMapNest('lonaxis', 'showgrid', true);
+    coerceMapNest('lonaxis', 'tick0', lonrange[0]);
+    coerceMapNest('lonaxis', 'dtick', 30);
+    coerceMapNest('lonaxis', 'gridcolor', '#777');
+    coerceMapNest('lonaxis', 'gridwidth', 1);
+
+    // TODO add zeroline attributes
+
+    var latrange = coerceMapNest('lataxis', 'range', [-90, 90]);
+    coerceMapNest('lataxis', 'showgrid', true);
+    coerceMapNest('lataxis', 'tick0', latrange[0]);
+    coerceMapNest('lataxis', 'dtick', 10);
+    coerceMapNest('lataxis', 'gridcolor', '#777');
+    coerceMapNest('lataxis', 'gridwidth', 1);
 
     fullLayout.map = mapFullLayout;
     gd._fullLayout = fullLayout;
@@ -405,7 +418,6 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("basemap", true);
 
-    // TODO should be a per-axis attribute
     svg.append("g")
         .classed("graticule", true);
 
@@ -499,6 +511,7 @@ map.init = function init(gd) {
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
         gBasemap,
+        gGraticule,
         gData,
         gChoropleth,
         gBasemapOverChoropleth,
@@ -530,11 +543,40 @@ map.init = function init(gd) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
-    // grid layers
-    map.svg.select("g.graticule")
-        .append("path")
-        .datum(d3.geo.graticule())
-        .attr("class", "graticule");
+    function plotGraticule(s, ax) {
+        var otherAx = {
+                lonaxis: 'lataxis',
+                lataxis: 'lonaxis'
+            }[ax],
+            axLayout = fullLayout.map[ax],
+            otherAxLayout = fullLayout.map[otherAx],
+            lonExtent = {
+                lonaxis: [axLayout.tick0, axLayout.range[1]],
+                lataxis: otherAxLayout.range
+            }[ax],
+            latExtent = {
+                lonaxis: otherAxLayout.range,
+                lataxis: [axLayout.tick0, axLayout.range[1]]
+            }[ax],
+            step = {
+                lonaxis: [axLayout.dtick],
+                lataxis: [0, axLayout.dtick]
+            }[ax],
+            graticule =  d3.geo.graticule()
+                .extent([
+                    [lonExtent[0], latExtent[0]],
+                    [lonExtent[1], latExtent[1]]
+                ])
+                .step(step);
+        s.append("path")
+         .attr("class", ax + 'graticule')
+         .datum(graticule);
+    }
+
+    // graticule layers - should these be over choropleth?
+    gGraticule = map.svg.select("g.graticule");
+    if (fullLayout.map.lonaxis.showgrid) plotGraticule(gGraticule, 'lonaxis');
+    if (fullLayout.map.lataxis.showgrid) plotGraticule(gGraticule, 'lataxis');
 
     // bind calcdata to SVG
     gData = map.svg.select("g.data")
@@ -657,7 +699,7 @@ map.drawPaths = function drawPaths() {
 
     d3.selectAll("g.basemap path")
         .attr("d", path);
-    d3.select("path.graticule")
+    d3.selectAll("g.graticule path")
         .attr("d", path);
 
     var gData = map.svg.select("g.data");
@@ -736,6 +778,15 @@ map.style = function style(gd) {
         s.attr("fill", "none")
          .attr("stroke", mapLayout[layer + 'color'])
          .attr("stroke-width", mapLayout[layer + 'width']);
+    });
+
+    ['lonaxis', 'lataxis'].forEach(function(ax){
+        var s = d3.select("path." + ax + "graticule");
+
+        s.attr("fill", "none")
+         .attr("stroke", mapLayout[ax].gridcolor)
+         .attr("stroke-width", mapLayout[ax].gridwidth)
+         .attr("stroke-opacity", 0.5);
     });
 
     var colorscale = d3.scale.log()

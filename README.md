@@ -12,7 +12,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - Choropleth of countries (with custom boundary lines)
 - Scatter points/text by locations (e.g. ISO-3)
 - Periodic panning and zoom
-- Customizable lon/lat axis ranges, grid width, color and spacing
+- Customizable lon/lat axis ranges, graticule width, color and spacing
 
 ### TODO list
 

@@ -1,5 +1,13 @@
 var map = {};
 
+map.CLIPANGLES = {
+    'orthographic': 90,
+    'azimuthalEqualArea': 180 - 1e-3,
+    'azimuthalEquidistant': 180 - 1e-3,
+    'gnomonic': 90 - 1e-3,
+    'stereographic': 180 - 1e-4
+};
+
 map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     if (!(astr in containerIn)) {
         containerOut[astr] = dflt;
@@ -51,9 +59,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
     coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
 
-    var isOrthographic = coerceMapNest('projection', '_isOrthographic',
-                                       (type==='orthographic'));
+    coerceMapNest('projection', '_isClipped', (type in map.CLIPANGLES));
 
+    // for conic projections
     coerceMapNest('projection', 'parallels', null);
 
     coerceMap('showcoastlines', (scope==='world'));
@@ -160,7 +168,7 @@ map.setPosition = function(gd) {
         mapLayout = fullLayout.map,
         mapDomain = mapLayout.domain,
         projLayout = mapLayout.projection,
-        isOrthographic = projLayout._isOrthographic,
+        isClipped = projLayout._isClipped,
         lonRange = mapLayout.lonaxis.range,
         latRange = mapLayout.lataxis.range;
 
@@ -239,13 +247,14 @@ map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
         projLayout = mapLayout.projection,
+        projType = projLayout.type,
         lonaxisLayout = mapLayout.lonaxis,
         lataxisLayout = mapLayout.lataxis,
         projection;
 
     map.setScale();
 
-    projection = d3.geo[projLayout.type]()
+    projection = d3.geo[projType]()
         .scale(projLayout._scale)
         .translate(projLayout._translate)
         .precision(0.1)
@@ -253,7 +262,7 @@ map.makeProjection = function makeProjection(gd) {
 
     if (projLayout.parallels) projection.parallels(projLayout.parallels);
 
-    if (projLayout._isOrthographic) projection.clipAngle(90);
+    if (projType in map.CLIPANGLES) projection.clipAngle(map.CLIPANGLES[projType]);
     else {
 //         map.setClipExtent(projection);
 //         projection.clipExtent(projLayout._clipExtent);
@@ -399,7 +408,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         projLayout = fullLayout.map.projection,
-        isOrthographic = projLayout._isOrthographic;
+        isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
         .attr("width", fullLayout.width)
@@ -419,7 +428,7 @@ map.makeSVG = function makeSVG(gd) {
             .datum({type: "Sphere"})
             .attr("class", "sphere");
     }
-    if (isOrthographic) doExtraOrthographic();
+//     if (isClipped) doExtraOrthographic();
 
     svg.append("g")
         .classed("data", true);
@@ -433,6 +442,8 @@ map.makeSVG = function makeSVG(gd) {
         .attr("fill", "none")
         .attr("stroke", "black")
         .attr("stroke-width", 4);
+
+    doExtraOrthographic();
 
     var m0,  // variables for dragging
         o0,
@@ -459,11 +470,11 @@ map.makeSVG = function makeSVG(gd) {
                           t0[1] + (m1[1] - m0[1])];
                 console.log('dragging');
                 console.log(map.projection.scale());
-                if (isOrthographic) {
-                    // orthographic projections are panned by rotation
+                if (isClipped) {
+                    // clipped  projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
                 } else {
-                    // non-orthographic projections are panned
+                    // non-clipped projections are panned
                     // by rotation along lon
                     map.projection.rotate([-o1[0], -o0[1]]);
                     // and by translation along lat
@@ -677,14 +688,17 @@ map.drawPaths = function drawPaths() {
         path = d3.geo.path().projection(projection);
 
     var fullLayout = gd._fullLayout,
-        isOrthographic = fullLayout.map.projection._isOrthographic;
+        isClipped = fullLayout.map.projection._isClipped;
 
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
     }
 
-    if (isOrthographic) {
+    d3.select("path.sphere")
+        .attr("d", path);
+
+    if (isClipped) {
         d3.select("path.sphere")
             .attr("d", path);
         // hide paths over the edge

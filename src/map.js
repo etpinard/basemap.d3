@@ -405,16 +405,6 @@ map.makeSVG = function makeSVG(gd) {
         .attr("width", fullLayout.width)
         .attr("height", fullLayout.height);
 
-    // rectangle around svg container
-    svg.append("rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", fullLayout.width)
-        .attr("height", fullLayout.height)
-        .attr("fill", "none")
-        .attr("stroke", "black")
-        .attr("stroke-width", 4);
-
     svg.append("g")
         .classed("basemap", true);
 
@@ -433,6 +423,16 @@ map.makeSVG = function makeSVG(gd) {
 
     svg.append("g")
         .classed("data", true);
+
+    // rectangle around svg container
+    svg.append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", fullLayout.width)
+        .attr("height", fullLayout.height)
+        .attr("fill", "none")
+        .attr("stroke", "black")
+        .attr("stroke-width", 4);
 
     var m0,  // variables for dragging
         o0,

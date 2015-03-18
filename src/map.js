@@ -38,6 +38,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerce('height', 450);
 
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
+
     var scope = coerceMap('scope', 'world');
     var resolution = coerceMap('resolution', '110m');
     coerceMap('_topojson', scope + '_' + resolution);
@@ -147,25 +148,78 @@ map.setPosition = function(gd) {
         mapDomain = mapLayout.domain,
         projLayout = mapLayout.projection,
         isOrthographic = projLayout._isOrthographic,
-        lonaxisRange = mapLayout.lonaxis.range;
+        lonRange = mapLayout.lonaxis.range,
+        latRange = mapLayout.lataxis.range;
 
-    var xOFFSET = 100;  // for reference
+    var gs = {};  // copied from graph_obj.js
+    gs.l = 0;    // Math.round(ml);
+    gs.r = 0;    // Math.round(mr);
+    gs.t = 0;    // Math.round(mt);
+    gs.b = 0;    // Math.round(mb);
+//     gs.p = Math.round(fullLayout.margin.pad);
+    gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
+    gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
-    // TODO
-    projLayout._translate = [xOFFSET + fullLayout.width/2, fullLayout.height/2];
 
-    projLayout._fullScale = (fullLayout.width + 1) / 2 / Math.PI;
+    map.setScale = function() {
+        return '';
+    }
 
-    mapLayout._length = fullLayout.width * (mapDomain.x[1] - mapDomain.x[0]);
+    map.setClipExtent = function(projection) {
+        var projRotateLon = projLayout.rotate[0],
+            leftLim =  projRotateLon - 180,
+            rightLim = projRotateLon + 180,
+            lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
+            lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
+    
+//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
+//         // TODO same for lat !!
+
+        projLayout._clipExtent = [
+            projection([lon0, latRange[1]]),
+            projection([lon1, latRange[0]])
+        ];
+    }
+
+// from axes.js:setScale
+//     if(ax._id.charAt(0)==='y') {
+//         ax._offset = gs.t+(1-ax.domain[1])*gs.h;
+//         ax._length = gs.h*(ax.domain[1]-ax.domain[0]);
+//         ax._m = ax._length/(ax.range[0]-ax.range[1]);
+//         ax._b = -ax._m*ax.range[1];
+//     }
+//     else {
+//         ax._offset = gs.l+ax.domain[0]*gs.w;
+//         ax._length = gs.w*(ax.domain[1]-ax.domain[0]);
+//         ax._m = ax._length/(ax.range[1]-ax.range[0]);
+//         ax._b = -ax._m*ax.range[0];
+//     }
+
+    mapLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
 //     mapLayout._m = mapLayout._length * 360 / (lonaxisRange[1] - lonaxisRange[0]);
     mapLayout._m = mapLayout._length;
 
+    // ...
+    projLayout._translate = [
+        gs.l + gs.w / 2,
+        gs.t + gs.h / 2,
+    ];
+
+    // projection scale at full range
+    projLayout._fullScale = (isOrthographic)
+        ? 150
+        : (Math.min(gs.w, gs.h) + 1) / 2 / Math.PI;
+
+    //
+
     if (isOrthographic) {
-        projLayout._scale = 250;
+        projLayout._scale = 150 ;
     }
     else {
-        projLayout._scale = (mapLayout._m + 1) / 2 / Math.PI;
+        projLayout._scale = (mapLayout._m - 4) / 2 / Math.PI;
+//         projLayout._scale = projLayout._fullScale;
     }
+
 };
 
 map.makeProjection = function makeProjection(gd) {
@@ -176,6 +230,8 @@ map.makeProjection = function makeProjection(gd) {
         lataxisLayout = mapLayout.lataxis,
         projection;
 
+    map.setScale();
+
     projection = d3.geo[projLayout.type]()
         .scale(projLayout._scale)
         .translate(projLayout._translate)
@@ -185,24 +241,10 @@ map.makeProjection = function makeProjection(gd) {
     if (projLayout.parallels) projection.parallels(projLayout.parallels);
 
     if (projLayout._isOrthographic) projection.clipAngle(90);
-
-//     function getClipExtent() {
-//         var lonRange = lonaxisLayout.range,
-//             latRange = lataxisLayout.range,
-//             projRotateLon = projLayout.rotate[0],
-//             leftLim =  projRotateLon - 180,
-//             rightLim = projRotateLon + 180,
-//             lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
-//             lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
-//
-//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
-//         // TODO same for lat !!
-//
-//         return [projection([lon0, latRange[1]]),
-//                 projection([lon1, latRange[0]])];
-//     }
-//     if (lonaxisLayout.range &&
-//             lataxisLayout.range) projection.clipExtent(getClipExtent());
+    else {
+//         map.setClipExtent(projection);
+//         projection.clipExtent(projLayout._clipExtent);
+    }
 
     map.projection = projection;
 };
@@ -732,7 +774,7 @@ map.style = function style(gd) {
 
 map.plot = function plot(gd) {
 
-    map.supplyLayoutDefaults(gd);  // some trace attributes depend on layout
+    map.supplyLayoutDefaults(gd);
     map.supplyDefaults(gd);
 
     map.setPosition(gd);

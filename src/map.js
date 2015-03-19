@@ -1,5 +1,11 @@
 var map = {};
 
+// TODO better handle full range for these projections
+// these depend on rotate
+map.FULLRANGE = {
+    'orthographic': [-45, 45]
+}
+
 map.CLIPANGLES = {
     'orthographic': 90,
     'azimuthalEqualArea': 180 - 1e-3,
@@ -85,7 +91,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    var lonrange = coerceMapNest('lonaxis', 'range', [-180, 180]);
+    var lonrange = coerceMapNest('lonaxis', 'range',
+        (type in map.FULLRANGE) ? map.FULLRANGE[type] : [-180, 180]);
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonrange[0]);
     coerceMapNest('lonaxis', 'dtick', 30);

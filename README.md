@@ -24,7 +24,6 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
   [`graticule.outline`](https://github.com/mbostock/d3/wiki/Geo-Paths#graticule_outline))
 lon/lat) attributes.
 
-- Fix zoom bug (zoom -> dbl click -> pan starts panning at last zoomed position)
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
   provinces)
@@ -64,9 +63,13 @@ npm install http-server -g
 
 ```
 
-- Open up http://localhost:8008/ 
+- Open up http://localhost:8000/
 
 ### API
 
 Describe the figure object of the examples in `./examples/`
+
+#### Axis ranges and projection rotation
+
+... TODO
 

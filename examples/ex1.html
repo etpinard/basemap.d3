@@ -37,20 +37,12 @@ gd.data = [
 ];
 
 gd.layout = {
-    width: 960,
-    height: 960,
     map: {
-        domain: {
-            x: [0, 1],
-            y: [0, 1]
-        },
-        resolution: '110m',
-        region: 'world',
-        //
         projection: {
             type: 'orthographic',
-            rotate: [-75, 35]
-//             parallels: [0, 62],  // for certain projections
+//             rotate: [-75, 35],
+//             zoom:  // -> scale
+            rotate: [0, 0]
         },
         //
         showcoastlines: true,
@@ -69,16 +61,7 @@ gd.layout = {
         //
         showsubunits: false,
         subunitslinecolor: "#aaa",
-        subunitslinewidth: 1,
-        //
-        lonaxis: {
-//             range: [-180, 180],
-            bounds: []
-        },
-        lataxis: {
-//             range: [0, 70],
-            bounds: []
-        }
+        subunitslinewidth: 1
     }
 };
 

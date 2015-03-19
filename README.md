@@ -16,7 +16,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 ### TODO list
 
-- Improve maps set scale (as a function of the figure size and axis range)
+- Improve maps set scale (almost there ...)
 
 - Improve scopes: figure out what land / ocean / coastlines layers should be
 

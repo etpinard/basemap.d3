@@ -459,20 +459,17 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("graticule", true);
 
-    function doExtraOrthographic() {
-        svg.append("g")
-            .classed("sphere", true);
-        svg.select("g.sphere")
-            .append("path")
-            .datum({type: "Sphere"})
-            .attr("class", "sphere");
-    }
-//     if (isClipped) doExtraOrthographic();
-
     svg.append("g")
         .classed("data", true);
 
-    // rectangle around svg container
+    // frame around map
+    // TODO incorporate into layout attributes
+    svg.append("g")
+        .classed("sphere", true);
+    svg.select("g.sphere")
+        .append("path")
+        .datum({type: "Sphere"})
+        .attr("class", "sphere");
     svg.append("rect")
         .attr("x", 0)
         .attr("y", 0)
@@ -481,8 +478,6 @@ map.makeSVG = function makeSVG(gd) {
         .attr("fill", "none")
         .attr("stroke", "black")
         .attr("stroke-width", 4);
-
-    doExtraOrthographic();
 
     var m0,  // variables for dragging
         o0,

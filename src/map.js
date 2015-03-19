@@ -1,5 +1,19 @@
 var map = {};
 
+// TODO better handle full range for these projections
+// these depend on rotate
+map.FULLRANGE = {
+    'orthographic': [-45, 45]
+}
+
+map.CLIPANGLES = {
+    'orthographic': 90,
+    'azimuthalEqualArea': 180 - 1e-3,
+    'azimuthalEquidistant': 180 - 1e-3,
+    'gnomonic': 90 - 1e-3,   // TODO larger precision (for large zoom)
+    'stereographic': 180 - 1e-3  // TODO larger clip angle (for large zoom)
+};
+
 map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     if (!(astr in containerIn)) {
         containerOut[astr] = dflt;
@@ -34,10 +48,11 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
     }
 
-    coerce('width', 960);
-    coerce('height', 960);
+    coerce('width', 700);
+    coerce('height', 450);
 
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
+
     var scope = coerceMap('scope', 'world');
     var resolution = coerceMap('resolution', '110m');
     coerceMap('_topojson', scope + '_' + resolution);
@@ -45,14 +60,10 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     var type = coerceMapNest('projection', 'type', 'equirectangular');
+    coerceMapNest('projection', '_isClipped', (type in map.CLIPANGLES));
+    coerceMapNest('projection', 'rotate', [0, 0]);
 
-    // Is this more intuitive?
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
-    coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
-
-    var isOrthographic = coerceMapNest('projection', '_isOrthographic',
-                                       (type==='orthographic'));
-
+    // for conic projections
     coerceMapNest('projection', 'parallels', null);
 
     coerceMap('showcoastlines', (scope==='world'));
@@ -80,7 +91,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    var lonrange = coerceMapNest('lonaxis', 'range', [-180, 180]);
+    var lonrange = coerceMapNest('lonaxis', 'range',
+        (type in map.FULLRANGE) ? map.FULLRANGE[type] : [-180, 180]);
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonrange[0]);
     coerceMapNest('lonaxis', 'dtick', 30);
@@ -154,27 +166,148 @@ map.supplyDefaults = function supplyDefaults(gd) {
     gd._fullData = fullData;
 };
 
-map.setPosition = function(gd) {
+map.setConvert = function setConvert(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
         mapDomain = mapLayout.domain,
         projLayout = mapLayout.projection,
-        isOrthographic = projLayout._isOrthographic,
-        lonaxisRange = mapLayout.lonaxis.range;
+        isClipped = projLayout._isClipped,
+        lonLayout = mapLayout.lonaxis,
+        latLayout = mapLayout.lataxis,
+        lonRange = lonLayout.range,
+        latRange = latLayout.range;
 
-    // TODO
-    projLayout._translate = [fullLayout.width/2, fullLayout.height/2];
+    var gs = fullLayout._gs = {};
 
-    mapLayout._length = fullLayout.width * (mapDomain.x[1] - mapDomain.x[0]);
-//     mapLayout._m = mapLayout._length * 360 / (lonaxisRange[1] - lonaxisRange[0]);
-    mapLayout._m = mapLayout._length;
+    gs.l = 0;  // Math.round(ml);
+    gs.r = 0;  // Math.round(mr);
+    gs.t = 0;  // Math.round(mt);
+    gs.b = 0;  // Math.round(mb);
+    gs.p = 0;  // Math.round(fullLayout.margin.pad);
+    gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
+    gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
-    if (isOrthographic) {
-        projLayout._scale = 250;
-    }
-    else {
-        projLayout._scale = (mapLayout._m + 1) / 2 / Math.PI;
-    }
+    var lonDiff = lonRange[1] - lonRange[0],
+        latDiff = latRange[1] - latRange[0];
+
+    // TOOD use this instead of gs.w / gs.h
+    lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
+    latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
+
+    // center of the projection is given by the lon/lat ranges
+    map.setCenter = function setCenter() {
+        projLayout._center = [
+            lonRange[0] + lonDiff / 2,
+            latRange[0] + latDiff / 2
+        ];
+    };
+
+    // initial translation
+    map.setTranslate = function setTranslate() {
+        projLayout._translate = [
+            gs.l + gs.w / 2,
+            gs.t + gs.h / 2
+        ];
+    };
+
+    // Is this more intuitive
+    map.setRotate = function setRotate() {
+        var rotate = projLayout.rotate;
+        projLayout._rotate = [
+            -rotate[0],
+            -rotate[1]
+        ];
+    };
+
+    // these don't need a projection; call them here
+    map.setCenter();
+    map.setTranslate();  // TODO into merge setScale?
+    map.setRotate();
+
+    // setScale needs a initial projection; it is called from makeProjection
+    map.setScale = function setScale(projection) {
+        var scale0 = projection.scale(),
+            bounds,
+            hscale,
+            vscale,
+            scale;
+
+        // TODO this actually depends on the projection!
+        projLayout._fullScale = gs.w / (2 * Math.PI);
+
+        // Inspired by: http://stackoverflow.com/a/14654988/4068492
+        // using the path determine the bounds of the current map and use
+        // these to determine better values for the scale and translation
+
+        // polygon GeoJSON corresponding to lon/lat range box
+        var rangeBox = {
+            type: "Polygon",
+            coordinates: [
+              [ [lonRange[0], latRange[0]],
+                [lonRange[0], latRange[1]],
+                [lonRange[1], latRange[1]],
+                [lonRange[1], latRange[0]],
+                [lonRange[0], latRange[0]] ]
+            ]
+        };
+
+        // bounds array [[top,left] [bottom,right]]
+        // of the lon/lat range box
+        function getBounds(projection) {
+            var path = d3.geo.path().projection(projection);
+            return path.bounds(rangeBox);
+        }
+
+        // scale projection given how range box get deformed
+        // by the projection
+        bounds = getBounds(projection);
+        hscale  = scale0 * gs.w  / (bounds[1][0] - bounds[0][0]);
+        vscale  = scale0 * gs.h / (bounds[1][1] - bounds[0][1]);
+        scale = (hscale < vscale) ? hscale : vscale;
+        projection.scale(scale);
+
+        // translate the projection so that the top-left corner
+        // of the range box is at the top-left corner of the viewbox
+        bounds = getBounds(projection);
+        projection.translate([
+            gs.w/2 - bounds[0][0],
+            gs.h/2 - bounds[0][1]
+        ]);
+
+        // clip regions out of the range box
+        // (these are clipping along horizontal/vertical lines)
+        bounds = getBounds(projection);
+        projection.clipExtent(bounds);
+
+        // TODO compute effective width / height with bounds
+        // and use it for container width/height
+
+        // TODO add clipping along meridian/parallels option
+
+    };
+
+};
+
+map.makeProjection = function makeProjection(gd) {
+    var fullLayout = gd._fullLayout,
+        projLayout = fullLayout.map.projection,
+        projType = projLayout.type,
+        projection;
+
+    projection = d3.geo[projType]()
+        .translate(projLayout._translate)
+        .center(projLayout._center)
+        .rotate(projLayout._rotate)
+        .precision(0.1);
+
+    if (projType in map.CLIPANGLES) projection.clipAngle(map.CLIPANGLES[projType]);
+
+    if (projLayout.parallels) projection.parallels(projLayout.parallels);
+
+    // ... the big one!
+    if (map._setScale===undefined) map.setScale(projection);
+
+    map.projection = projection;
 };
 
 map.isScatter = function(trace) {
@@ -245,7 +378,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
                 if (indexOfId===-1) return;
                 return features[indexOfId].properties.centroid;
             };
-        } else {
+        }
+        else {
             N = Math.min(trace.lon.length, trace.lat.length);
 
             getLonLat = function(trace, j) {
@@ -311,53 +445,14 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
-map.makeProjection = function makeProjection(gd) {
-    var fullLayout = gd._fullLayout,
-        mapLayout = fullLayout.map,
-        projLayout = mapLayout.projection,
-        lonaxisLayout = mapLayout.lonaxis,
-        lataxisLayout = mapLayout.lataxis,
-        projection;
-
-    projection = d3.geo[projLayout.type]()
-        .scale(projLayout._scale)
-        .translate(projLayout._translate)
-        .precision(0.1)
-        .rotate(projLayout._rotate);
-
-    if (projLayout.parallels) projection.parallels(projLayout.parallels);
-
-    if (projLayout._isOrthographic) projection.clipAngle(90);
-
-//     function getClipExtent() {
-//         var lonRange = lonaxisLayout.range,
-//             latRange = lataxisLayout.range,
-//             projRotateLon = projLayout.rotate[0],
-//             leftLim =  projRotateLon - 180,
-//             rightLim = projRotateLon + 180,
-//             lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
-//             lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
-//
-//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
-//         // TODO same for lat !!
-//
-//         return [projection([lon0, latRange[1]]),
-//                 projection([lon1, latRange[0]])];
-//     }
-//     if (lonaxisLayout.range &&
-//             lataxisLayout.range) projection.clipExtent(getClipExtent());
-
-    return projection;
-};
-
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         projLayout = fullLayout.map.projection,
-        isOrthographic = projLayout._isOrthographic;
+        isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
-        .attr("width", gd.layout.width)
-        .attr("height", gd.layout.height);
+        .attr("width", fullLayout._gs.w)
+        .attr("height", fullLayout._gs.h);
 
     svg.append("g")
         .classed("basemap", true);
@@ -365,18 +460,27 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("graticule", true);
 
-    function doExtraOrthographic() {
-        svg.append("g")
-            .classed("sphere", true);
-        svg.select("g.sphere")
-            .append("path")
-            .datum({type: "Sphere"})
-            .attr("class", "sphere");
-    }
-    if (isOrthographic) doExtraOrthographic();
-
     svg.append("g")
         .classed("data", true);
+
+    // frame around map
+    // TODO incorporate into layout attributes
+    svg.append("g")
+        .classed("sphere", true);
+    svg.select("g.sphere")
+        .append("path")
+        .datum({type: "Sphere"})
+        .attr("class", "sphere");
+
+    // rectangle around svg container (for testing)
+    svg.append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", fullLayout._gs.w)
+        .attr("height", fullLayout._gs.h)
+        .attr("fill", "none")
+        .attr("stroke", "black")
+        .attr("stroke-width", 4);
 
     var m0,  // variables for dragging
         o0,
@@ -386,55 +490,58 @@ map.makeSVG = function makeSVG(gd) {
         .on("dragstart", function() {
             var p = map.projection.rotate(),
                 t = map.projection.translate();
-            console.log('drag start');
-            console.log(map.projection.scale());
-            m0 = [d3.event.sourceEvent.pageX,
-                  d3.event.sourceEvent.pageY];
+            m0 = [
+                d3.event.sourceEvent.pageX,
+                d3.event.sourceEvent.pageY
+            ];
             o0 = [-p[0], -p[1]];
             t0 = [t[0], t[1]];
         })
         .on("drag", function() {
             if (m0) {
-                var m1 = [d3.event.sourceEvent.pageX,
-                          d3.event.sourceEvent.pageY],
-                    o1 = [o0[0] + (m0[0] - m1[0]) / 4,
-                          o0[1] + (m1[1] - m0[1]) / 4],
-                    t1 = [t0[0] + (m0[0] - m1[0]),
-                          t0[1] + (m1[1] - m0[1])];
-                console.log('dragging');
-                console.log(map.projection.scale());
-                if (isOrthographic) {
-                    // orthographic projections are panned by rotation
+                var m1 = [
+                        d3.event.sourceEvent.pageX,
+                        d3.event.sourceEvent.pageY
+                    ],
+                    o1 = [
+                        o0[0] + (m0[0] - m1[0]) / 4,
+                        o0[1] + (m1[1] - m0[1]) / 4
+                    ],
+                    t1 = [
+                        t0[0] + (m0[0] - m1[0]),
+                        t0[1] + (m1[1] - m0[1])
+                    ];
+
+                if (isClipped) {
+                    // clipped  projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
                 } else {
-                    // orthographic projections are panned
+                    // non-clipped projections are panned
                     // by rotation along lon
-                    // and by translation along lat
                     map.projection.rotate([-o1[0], -o0[1]]);
-                    map.projection.translate([t0[0], t1[1]]);
+                    // and by translation along lat
+                    // if scale is greater than fullScale
+                    // TODO more conditions?
+                    if (map.projection.scale() > projLayout._fullScale) {
+                        map.projection.translate([t0[0], t1[1]]);
+                    }
                 }
-                map.drawPaths(gd);
+                map.drawPaths();
             }
         });
 
     var zoom = d3.behavior.zoom()
-        .scale(projLayout._scale)
-        .scaleExtent([100, 1000])
+        .scale(map.projection.scale())
+        .scaleExtent([projLayout._fullScale, 10 * projLayout._fullScale])
         .on("zoom", function() {
-            console.log('zooming');
-            console.log(map.projection.scale());
             map.projection.scale(d3.event.scale);
-            map.drawPaths(gd);
+            map.drawPaths();
         });
 
     var dblclick = function() {
-        // TODO fix bug zoom
-        // -> dblclick -> translate start at last zoomed in position
-        console.log('double clicking');
-        console.log(map.projection.scale());
-        map.projection = map.makeProjection(gd);
-        console.log(map.projection.scale());
-        map.drawPaths(gd);
+        map.makeProjection(gd);
+        zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
+        map.drawPaths();
     };
 
     svg
@@ -483,6 +590,7 @@ map.init = function init(gd) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
+    // TODO graticule should go around the globe
     function plotGraticule(s, ax) {
         var otherAx = {
                 lonaxis: 'lataxis',
@@ -594,7 +702,7 @@ map.init = function init(gd) {
             }
         });
 
-    map.drawPaths(gd);  // draw the paths
+    map.drawPaths();  // draw the paths
 };
 
 map.makeLineGeoJSON = function makeLineGeoJSON(d) {
@@ -617,14 +725,17 @@ map.drawPaths = function drawPaths() {
         path = d3.geo.path().projection(projection);
 
     var fullLayout = gd._fullLayout,
-        isOrthographic = fullLayout.map.projection._isOrthographic;
+        isClipped = fullLayout.map.projection._isClipped;
 
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
     }
 
-    if (isOrthographic) {
+    d3.select("path.sphere")
+        .attr("d", path);
+
+    if (isClipped) {
         d3.select("path.sphere")
             .attr("d", path);
         // hide paths over the edge
@@ -765,9 +876,11 @@ map.style = function style(gd) {
 
 map.plot = function plot(gd) {
 
-    map.supplyLayoutDefaults(gd);  // some trace attributes depend on layout
+    map.supplyLayoutDefaults(gd);
     map.supplyDefaults(gd);
-    map.setPosition(gd);
+
+    map.setConvert(gd);
+    map.makeProjection(gd);
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 
@@ -775,7 +888,6 @@ map.plot = function plot(gd) {
 
         map.topo = topo;
         map.makeCalcdata(gd);
-        map.projection = map.makeProjection(gd);
 
         map.init(gd);
         map.style(gd);

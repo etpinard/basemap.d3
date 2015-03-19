@@ -54,12 +54,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     var type = coerceMapNest('projection', 'type', 'equirectangular');
-
-    // Is this more intuitive?
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
-    coerceMapNest('projection', '_rotate', [-rotate[0], -rotate[1]]);
-
     coerceMapNest('projection', '_isClipped', (type in map.CLIPANGLES));
+    coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
     coerceMapNest('projection', 'parallels', null);

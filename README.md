@@ -21,7 +21,6 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 - Improve scopes: figure out what land / ocean / coastlines layers should be
 
-- Fix zoom bug (zoom -> dbl click -> pan starts panning at last zoomed position)
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
   provinces)

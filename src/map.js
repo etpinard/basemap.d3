@@ -528,13 +528,9 @@ map.makeSVG = function makeSVG(gd) {
         });
 
     var dblclick = function() {
-        // TODO fix bug zoom
-        // -> dblclick -> translate start at last zoomed in position
-        console.log('double clicking');
-        console.log(map.projection.scale());
         map.makeProjection(gd);
-        console.log(map.projection.scale());
-        map.drawPaths(gd);
+        zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
+        map.drawPaths();
     };
 
     svg

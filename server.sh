@@ -5,7 +5,7 @@ pidfile="./.server.pid"
 case "$1" in
 
     up)
-        http-server -p 8008 --silent &
+        http-server -p 8000 --silent &
         echo $! > ${pidfile}
         ;;
     halt)

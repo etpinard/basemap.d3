@@ -61,9 +61,13 @@ npm install http-server -g
 
 ```
 
-- Open up http://localhost:8008/ 
+- Open up http://localhost:8000/
 
 ### API
 
 Describe the figure object of the examples in `./examples/`
+
+#### Axis ranges and projection rotation
+
+TODO
 

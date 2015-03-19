@@ -440,8 +440,8 @@ map.makeSVG = function makeSVG(gd) {
         isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
-        .attr("width", fullLayout.width)
-        .attr("height", fullLayout.height);
+        .attr("width", fullLayout._gs.w)
+        .attr("height", fullLayout._gs.h);
 
     svg.append("g")
         .classed("basemap", true);
@@ -466,8 +466,8 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("rect")
         .attr("x", 0)
         .attr("y", 0)
-        .attr("width", fullLayout.width)
-        .attr("height", fullLayout.height)
+        .attr("width", fullLayout._gs.w)
+        .attr("height", fullLayout._gs.h)
         .attr("fill", "none")
         .attr("stroke", "black")
         .attr("stroke-width", 4);

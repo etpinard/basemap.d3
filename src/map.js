@@ -10,8 +10,8 @@ map.CLIPANGLES = {
     'orthographic': 90,
     'azimuthalEqualArea': 180 - 1e-3,
     'azimuthalEquidistant': 180 - 1e-3,
-    'gnomonic': 90 - 1e-3,
-    'stereographic': 180 - 1e-4
+    'gnomonic': 90 - 1e-3,   // TODO larger precision (for large zoom)
+    'stereographic': 180 - 1e-3  // TODO larger clip angle (for large zoom)
 };
 
 map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
@@ -378,7 +378,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
                 if (indexOfId===-1) return;
                 return features[indexOfId].properties.centroid;
             };
-        } else {
+        }
+        else {
             N = Math.min(trace.lon.length, trace.lat.length);
 
             getLonLat = function(trace, j) {
@@ -470,6 +471,8 @@ map.makeSVG = function makeSVG(gd) {
         .append("path")
         .datum({type: "Sphere"})
         .attr("class", "sphere");
+
+    // rectangle around svg container (for testing)
     svg.append("rect")
         .attr("x", 0)
         .attr("y", 0)
@@ -587,6 +590,7 @@ map.init = function init(gd) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
+    // TODO graticule should go around the globe
     function plotGraticule(s, ax) {
         var otherAx = {
                 lonaxis: 'lataxis',
@@ -698,7 +702,7 @@ map.init = function init(gd) {
             }
         });
 
-    map.drawPaths(gd);  // draw the paths
+    map.drawPaths();  // draw the paths
 };
 
 map.makeLineGeoJSON = function makeLineGeoJSON(d) {

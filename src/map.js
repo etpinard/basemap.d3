@@ -225,6 +225,9 @@ map.setConvert = function setConvert(gd) {
             vscale,
             scale;
 
+        // TODO this actually depends on the projection!
+        projLayout._fullScale = gs.w / (2 * Math.PI);
+
         // Inspired by: http://stackoverflow.com/a/14654988/4068492
         // using the path determine the bounds of the current map and use
         // these to determine better values for the scale and translation
@@ -482,23 +485,28 @@ map.makeSVG = function makeSVG(gd) {
         .on("dragstart", function() {
             var p = map.projection.rotate(),
                 t = map.projection.translate();
-            console.log('drag start');
-            console.log(map.projection.scale());
-            m0 = [d3.event.sourceEvent.pageX,
-                  d3.event.sourceEvent.pageY];
+            m0 = [
+                d3.event.sourceEvent.pageX,
+                d3.event.sourceEvent.pageY
+            ];
             o0 = [-p[0], -p[1]];
             t0 = [t[0], t[1]];
         })
         .on("drag", function() {
             if (m0) {
-                var m1 = [d3.event.sourceEvent.pageX,
-                          d3.event.sourceEvent.pageY],
-                    o1 = [o0[0] + (m0[0] - m1[0]) / 4,
-                          o0[1] + (m1[1] - m0[1]) / 4],
-                    t1 = [t0[0] + (m0[0] - m1[0]),
-                          t0[1] + (m1[1] - m0[1])];
-                console.log('dragging');
-                console.log(map.projection.scale());
+                var m1 = [
+                        d3.event.sourceEvent.pageX,
+                        d3.event.sourceEvent.pageY
+                    ],
+                    o1 = [
+                        o0[0] + (m0[0] - m1[0]) / 4,
+                        o0[1] + (m1[1] - m0[1]) / 4
+                    ],
+                    t1 = [
+                        t0[0] + (m0[0] - m1[0]),
+                        t0[1] + (m1[1] - m0[1])
+                    ];
+
                 if (isClipped) {
                     // clipped  projections are panned by rotation
                     map.projection.rotate([-o1[0], -o1[1]]);
@@ -513,18 +521,16 @@ map.makeSVG = function makeSVG(gd) {
                         map.projection.translate([t0[0], t1[1]]);
                     }
                 }
-                map.drawPaths(gd);
+                map.drawPaths();
             }
         });
 
     var zoom = d3.behavior.zoom()
-        .scale(projLayout._scale)
-        .scaleExtent([projLayout._fullScale, 1000])
+        .scale(map.projection.scale())
+        .scaleExtent([projLayout._fullScale, 10 * projLayout._fullScale])
         .on("zoom", function() {
-            console.log('zooming');
-            console.log(map.projection.scale());
             map.projection.scale(d3.event.scale);
-            map.drawPaths(gd);
+            map.drawPaths();
         });
 
     var dblclick = function() {

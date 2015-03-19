@@ -163,110 +163,143 @@ map.supplyDefaults = function supplyDefaults(gd) {
     gd._fullData = fullData;
 };
 
-map.setPosition = function(gd) {
+map.setConvert = function setConvert(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
         mapDomain = mapLayout.domain,
         projLayout = mapLayout.projection,
         isClipped = projLayout._isClipped,
-        lonRange = mapLayout.lonaxis.range,
-        latRange = mapLayout.lataxis.range;
+        lonLayout = mapLayout.lonaxis,
+        latLayout = mapLayout.lataxis,
+        lonRange = lonLayout.range,
+        latRange = latLayout.range;
 
-    var gs = {};  // copied from graph_obj.js
-    gs.l = 0;    // Math.round(ml);
-    gs.r = 0;    // Math.round(mr);
-    gs.t = 0;    // Math.round(mt);
-    gs.b = 0;    // Math.round(mb);
-//     gs.p = Math.round(fullLayout.margin.pad);
+    var gs = fullLayout._gs = {};
+
+    gs.l = 0;  // Math.round(ml);
+    gs.r = 0;  // Math.round(mr);
+    gs.t = 0;  // Math.round(mt);
+    gs.b = 0;  // Math.round(mb);
+    gs.p = 0;  // Math.round(fullLayout.margin.pad);
     gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
     gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
+    var lonDiff = lonRange[1] - lonRange[0],
+        latDiff = latRange[1] - latRange[0];
 
-    map.setScale = function() {
-        return '';
-    }
+    // TOOD use this instead of gs.w / gs.h
+    lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
+    latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
-    map.setClipExtent = function(projection) {
-        var projRotateLon = projLayout.rotate[0],
-            leftLim =  projRotateLon - 180,
-            rightLim = projRotateLon + 180,
-            lon0 = (lonRange[0] < leftLim) ? leftLim : lonRange[0],
-            lon1 = (lonRange[1] > rightLim) ? rightLim : lonRange[1];
-    
-//         // limit lon range to [leftLim, rightLim] with lon0 < lon1
-//         // TODO same for lat !!
-
-        projLayout._clipExtent = [
-            projection([lon0, latRange[1]]),
-            projection([lon1, latRange[0]])
+    // center of the projection is given by the lon/lat ranges
+    map.setCenter = function setCenter() {
+        projLayout._center = [
+            lonRange[0] + lonDiff / 2,
+            latRange[0] + latDiff / 2
         ];
-    }
+    };
 
-// from axes.js:setScale
-//     if(ax._id.charAt(0)==='y') {
-//         ax._offset = gs.t+(1-ax.domain[1])*gs.h;
-//         ax._length = gs.h*(ax.domain[1]-ax.domain[0]);
-//         ax._m = ax._length/(ax.range[0]-ax.range[1]);
-//         ax._b = -ax._m*ax.range[1];
-//     }
-//     else {
-//         ax._offset = gs.l+ax.domain[0]*gs.w;
-//         ax._length = gs.w*(ax.domain[1]-ax.domain[0]);
-//         ax._m = ax._length/(ax.range[1]-ax.range[0]);
-//         ax._b = -ax._m*ax.range[0];
-//     }
+    // initial translation
+    map.setTranslate = function setTranslate() {
+        projLayout._translate = [
+            gs.l + gs.w / 2,
+            gs.t + gs.h / 2
+        ];
+    };
 
-    mapLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
-//     mapLayout._m = mapLayout._length * 360 / (lonaxisRange[1] - lonaxisRange[0]);
-    mapLayout._m = mapLayout._length;
+    // Is this more intuitive
+    map.setRotate = function setRotate() {
+        var rotate = projLayout.rotate;
+        projLayout._rotate = [
+            -rotate[0],
+            -rotate[1]
+        ];
+    };
 
-    // ...
-    projLayout._translate = [
-        gs.l + gs.w / 2,
-        gs.t + gs.h / 2,
-    ];
+    // these don't need a projection; call them here
+    map.setCenter();
+    map.setTranslate();  // TODO into merge setScale?
+    map.setRotate();
 
-    // projection scale at full range
-    projLayout._fullScale = (isOrthographic)
-        ? 150
-        : (Math.min(gs.w, gs.h) + 1) / 2 / Math.PI;
+    // setScale needs a initial projection; it is called from makeProjection
+    map.setScale = function setScale(projection) {
+        var scale0 = projection.scale(),
+            bounds,
+            hscale,
+            vscale,
+            scale;
 
-    //
+        // Inspired by: http://stackoverflow.com/a/14654988/4068492
+        // using the path determine the bounds of the current map and use
+        // these to determine better values for the scale and translation
 
-    if (isOrthographic) {
-        projLayout._scale = 150 ;
-    }
-    else {
-        projLayout._scale = (mapLayout._m - 4) / 2 / Math.PI;
-//         projLayout._scale = projLayout._fullScale;
-    }
+        // polygon GeoJSON corresponding to lon/lat range box
+        var rangeBox = {
+            type: "Polygon",
+            coordinates: [
+              [ [lonRange[0], latRange[0]],
+                [lonRange[0], latRange[1]],
+                [lonRange[1], latRange[1]],
+                [lonRange[1], latRange[0]],
+                [lonRange[0], latRange[0]] ]
+            ]
+        };
+
+        // bounds array [[top,left] [bottom,right]]
+        // of the lon/lat range box
+        function getBounds(projection) {
+            var path = d3.geo.path().projection(projection);
+            return path.bounds(rangeBox);
+        }
+
+        // scale projection given how range box get deformed
+        // by the projection
+        bounds = getBounds(projection);
+        hscale  = scale0 * gs.w  / (bounds[1][0] - bounds[0][0]);
+        vscale  = scale0 * gs.h / (bounds[1][1] - bounds[0][1]);
+        scale = (hscale < vscale) ? hscale : vscale;
+        projection.scale(scale);
+
+        // translate the projection so that the top-left corner
+        // of the range box is at the top-left corner of the viewbox
+        bounds = getBounds(projection);
+        projection.translate([
+            gs.w/2 - bounds[0][0],
+            gs.h/2 - bounds[0][1]
+        ]);
+
+        // clip regions out of the range box
+        // (these are clipping along horizontal/vertical lines)
+        bounds = getBounds(projection);
+        projection.clipExtent(bounds);
+
+        // TODO compute effective width / height with bounds
+        // and use it for container width/height
+
+        // TODO add clipping along meridian/parallels option
+
+    };
 
 };
 
 map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
-        mapLayout = fullLayout.map,
-        projLayout = mapLayout.projection,
+        projLayout = fullLayout.map.projection,
         projType = projLayout.type,
-        lonaxisLayout = mapLayout.lonaxis,
-        lataxisLayout = mapLayout.lataxis,
         projection;
 
-    map.setScale();
-
     projection = d3.geo[projType]()
-        .scale(projLayout._scale)
         .translate(projLayout._translate)
-        .precision(0.1)
-        .rotate(projLayout._rotate);
+        .center(projLayout._center)
+        .rotate(projLayout._rotate)
+        .precision(0.1);
+
+    if (projType in map.CLIPANGLES) projection.clipAngle(map.CLIPANGLES[projType]);
 
     if (projLayout.parallels) projection.parallels(projLayout.parallels);
 
-    if (projType in map.CLIPANGLES) projection.clipAngle(map.CLIPANGLES[projType]);
-    else {
-//         map.setClipExtent(projection);
-//         projection.clipExtent(projLayout._clipExtent);
-    }
+    // ... the big one!
+    if (map._setScale===undefined) map.setScale(projection);
 
     map.projection = projection;
 };
@@ -842,7 +875,7 @@ map.plot = function plot(gd) {
     map.supplyLayoutDefaults(gd);
     map.supplyDefaults(gd);
 
-    map.setPosition(gd);
+    map.setConvert(gd);
     map.makeProjection(gd);
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";

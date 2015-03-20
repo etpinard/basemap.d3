@@ -486,55 +486,62 @@ map.makeSVG = function makeSVG(gd) {
         o0,
         t0;
 
-    var drag = d3.behavior.drag()
-        .on("dragstart", function() {
-            var p = map.projection.rotate(),
-                t = map.projection.translate();
-            m0 = [
+    function handleZoomStart() {
+        var p = map.projection.rotate(),
+            t = map.projection.translate();
+        m0 = [
+            d3.event.sourceEvent.pageX,
+            d3.event.sourceEvent.pageY
+        ];
+        o0 = [-p[0], -p[1]];
+        t0 = [t[0], t[1]];
+    }
+
+    function handleZoom() {
+        if (!m0) return;
+
+        var m1 = [
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
+            ],
+            o1 = [
+                o0[0] + (m0[0] - m1[0]) / 4,
+                o0[1] + (m1[1] - m0[1]) / 4
+            ],
+            t1 = [
+                t0[0] + (m0[0] - m1[0]),
+                t0[1] + (m1[1] - m0[1])
             ];
-            o0 = [-p[0], -p[1]];
-            t0 = [t[0], t[1]];
-        })
-        .on("drag", function() {
-            if (m0) {
-                var m1 = [
-                        d3.event.sourceEvent.pageX,
-                        d3.event.sourceEvent.pageY
-                    ],
-                    o1 = [
-                        o0[0] + (m0[0] - m1[0]) / 4,
-                        o0[1] + (m1[1] - m0[1]) / 4
-                    ],
-                    t1 = [
-                        t0[0] + (m0[0] - m1[0]),
-                        t0[1] + (m1[1] - m0[1])
-                    ];
 
-                if (isClipped) {
-                    // clipped  projections are panned by rotation
-                    map.projection.rotate([-o1[0], -o1[1]]);
-                } else {
-                    // non-clipped projections are panned
-                    // by rotation along lon
-                    map.projection.rotate([-o1[0], -o0[1]]);
-                    // and by translation along lat
-                    // if scale is greater than fullScale
-                    // TODO more conditions?
-                    if (map.projection.scale() > projLayout._fullScale) {
-                        map.projection.translate([t0[0], t1[1]]);
-                    }
-                }
-                map.drawPaths();
+        if (isClipped) {
+            // clipped projections are panned by rotation
+            map.projection.rotate([-o1[0], -o1[1]]);
+        }
+        else {
+            // non-clipped projections are panned
+            // by rotation along lon
+            map.projection.rotate([-o1[0], -o0[1]]);
+            // and by translation along lat
+            // if scale is greater than fullScale
+            // TODO more conditions?
+            if (map.projection.scale() > projLayout._fullScale) {
+                map.projection.translate([t0[0], t1[1]]);
             }
-        });
+        }
+    }
 
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
-        .scaleExtent([projLayout._fullScale, 10 * projLayout._fullScale])
+        .scaleExtent([
+            projLayout._fullScale,
+            10 * projLayout._fullScale
+        ])
+        .on("zoomstart", function() {
+            handleZoomStart();
+        })
         .on("zoom", function() {
             map.projection.scale(d3.event.scale);
+            handleZoom();
             map.drawPaths();
         });
 
@@ -545,7 +552,6 @@ map.makeSVG = function makeSVG(gd) {
     };
 
     svg
-        .call(drag)
         .call(zoom)
         .on("dblclick.zoom", null)
         .on("dblclick", dblclick);

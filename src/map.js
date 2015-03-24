@@ -96,6 +96,10 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
+    coerceMap('showframe', true);
+    coerceMap('framelinecolor', 'black');
+    coerceMap('framelinewidth', 2);
+
     var lonrange = coerceMapNest('lonaxis', 'range',
         (type in map.FULLRANGE) ? map.FULLRANGE[type] : [-180, 180]);
     coerceMapNest('lonaxis', 'showgrid', true);
@@ -468,6 +472,8 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("graticule", true);
 
+    // TODO should 'frame' be drawn over 'graticule' ?
+
     svg.append("g")
         .classed("data", true);
 
@@ -482,24 +488,6 @@ map.makeSVG = function makeSVG(gd) {
             .attr("stroke", "black")
             .attr("stroke-width", 4);
     }
-    // frame around map
-    // TODO incorporate into layout attributes
-    svg.append("g")
-        .classed("sphere", true);
-    svg.select("g.sphere")
-        .append("path")
-        .datum({type: "Sphere"})
-        .attr("class", "sphere");
-
-    // rectangle around svg container (for testing)
-    svg.append("rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", fullLayout._gs.w)
-        .attr("height", fullLayout._gs.h)
-        .attr("fill", "none")
-        .attr("stroke", "black")
-        .attr("stroke-width", 4);
 
     var m0,  // variables for dragging
         o0,
@@ -591,7 +579,8 @@ map.init = function init(gd) {
         i;
 
     map.fillLayers = ['ocean', 'land', 'lakes'];
-    map.lineLayers = ['subunits', 'countries', 'coastlines', 'rivers'];
+    map.lineLayers = ['subunits', 'countries',
+                      'coastlines', 'rivers', 'frame'];
 
     map.baselayers = map.fillLayers.concat(map.lineLayers);
     map.baselayersOverChoropleth = ['rivers', 'lakes'];
@@ -599,10 +588,15 @@ map.init = function init(gd) {
     map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(s, layer) {
+        var datum;
+
         if (fullLayout.map['show' + layer]===true) {
-             s.append("g")
-                .datum(topojson.feature(topo,
-                                        topo.objects[layer]))
+            datum = (layer==='frame') ?
+                {type: 'Sphere'} :
+                topojson.feature(topo, topo.objects[layer]);
+
+          s.append("g")
+                .datum(datum)
                 .attr("class", layer)
               .append("path")
                 .attr("class", layer);
@@ -772,12 +766,7 @@ map.drawPaths = function drawPaths() {
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
     }
 
-    d3.select("path.sphere")
-        .attr("d", path);
-
     if (isClipped) {
-        d3.select("path.sphere")
-            .attr("d", path);
         // hide paths over edges
         d3.selectAll("path.point")
             .attr("opacity", function(d) {

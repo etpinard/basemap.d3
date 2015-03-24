@@ -239,8 +239,6 @@ map.setConvert = function setConvert(gd) {
     map.setScale = function setScale(projection) {
         var scale0 = projection.scale(),
             bounds,
-            hscale,
-            vscale,
             scale;
 
         // TODO this actually depends on the projection!
@@ -272,9 +270,10 @@ map.setConvert = function setConvert(gd) {
         // scale projection given how range box get deformed
         // by the projection
         bounds = getBounds(projection);
-        hscale  = scale0 * gs.w  / (bounds[1][0] - bounds[0][0]);
-        vscale  = scale0 * gs.h / (bounds[1][1] - bounds[0][1]);
-        scale = (hscale < vscale) ? hscale : vscale;
+        scale  = Math.min(
+            scale0 * gs.w  / (bounds[1][0] - bounds[0][0]),
+            scale0 * gs.h / (bounds[1][1] - bounds[0][1])
+        );
         projection.scale(scale);
 
         // translate the projection so that the top-left corner
@@ -759,7 +758,8 @@ map.drawPaths = function drawPaths() {
         path = d3.geo.path().projection(projection);
 
     var fullLayout = gd._fullLayout,
-        isClipped = fullLayout.map.projection._isClipped;
+        isClipped = fullLayout.map.projection._isClipped,
+        gData;
 
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
@@ -782,7 +782,7 @@ map.drawPaths = function drawPaths() {
     d3.selectAll("g.graticule path")
         .attr("d", path);
 
-    var gData = map.svg.select("g.data");
+    gData = map.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
         .attr("d", path);
     gData.selectAll("g.basemapoverchoropleth path")

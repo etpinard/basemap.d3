@@ -1,5 +1,10 @@
 var map = {};
 
+// Enable debug mode:
+// - boundary around fullLayout.width / height
+// - grid line fixed to lon/lat axis ranges
+map.DEBUG = false;
+
 // TODO better handle full range for these projections
 // these depend on rotate
 map.FULLRANGE = {
@@ -463,6 +468,17 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("data", true);
 
+    // [DEBUG] rectangle around svg container
+    if (map.DEBUG) {
+        svg.append("rect")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", gs.w)
+            .attr("height", gs.h)
+            .attr("fill", "none")
+            .attr("stroke", "black")
+            .attr("stroke-width", 4);
+    }
     // frame around map
     // TODO incorporate into layout attributes
     svg.append("g")
@@ -596,7 +612,6 @@ map.init = function init(gd) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
-    // TODO graticule should go around the globe
     function plotGraticule(s, ax) {
         var otherAx = {
                 lonaxis: 'lataxis',
@@ -604,28 +619,43 @@ map.init = function init(gd) {
             }[ax],
             axLayout = fullLayout.map[ax],
             otherAxLayout = fullLayout.map[otherAx],
-            lonExtent = {
-                lonaxis: [axLayout.tick0, axLayout.range[1]],
-                lataxis: otherAxLayout.range
-            }[ax],
-            latExtent = {
-                lonaxis: otherAxLayout.range,
-                lataxis: [axLayout.tick0, axLayout.range[1]]
-            }[ax],
             step = {
                 lonaxis: [axLayout.dtick],
                 lataxis: [0, axLayout.dtick]
             }[ax],
-            graticule =  d3.geo.graticule()
-                .extent([
-                    [lonExtent[0], latExtent[0]],
-                    [lonExtent[1], latExtent[1]]
-                ])
-                .step(step);
+           lonExtent,
+           latExtent,
+           graticule;
+
+        // [DEBUG] grit line fixed to lon/lat axis ranges
+        if (map.DEBUG) {
+            lonExtent = {
+                lonaxis: [axLayout.tick0, axLayout.range[1]],
+                lataxis: otherAxLayout.range
+            }[ax];
+            latExtent = {
+                lonaxis: otherAxLayout.range,
+                lataxis: [axLayout.tick0, axLayout.range[1]]
+            }[ax];
+        }
+        else {
+            // TODO should be 'FULLRANGE'
+            // and something smarter for scopes
+            lonExtent = [-180, 180];
+            latExtent = [-90, 90];
+        }
+
+        graticule =  d3.geo.graticule()
+            .extent([
+                [lonExtent[0], latExtent[0]],
+                [lonExtent[1], latExtent[1]]
+            ])
+            .step(step);
+
         s.append("path")
          .attr("class", ax + 'graticule')
          .datum(graticule);
-    }
+        }
 
     // graticule layers - should these be over choropleth?
     gGraticule = map.svg.select("g.graticule");

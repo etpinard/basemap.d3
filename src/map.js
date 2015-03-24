@@ -488,8 +488,8 @@ map.makeSVG = function makeSVG(gd) {
             .attr("width", gs.w)
             .attr("height", gs.h)
             .attr("fill", "none")
-            .attr("stroke", "black")
-            .attr("stroke-width", 4);
+            .attr("stroke", "red")
+            .attr("stroke-width", 6);
     }
 
     var m0,  // variables for dragging

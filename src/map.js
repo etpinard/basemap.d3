@@ -9,7 +9,7 @@ map.DEBUG = false;
 // these depend on rotate
 map.FULLRANGE = {
     'orthographic': [-45, 45]
-}
+};
 
 map.CLIPANGLES = {
     'orthographic': 90,
@@ -195,9 +195,11 @@ map.setConvert = function setConvert(gd) {
     var lonDiff = lonRange[1] - lonRange[0],
         latDiff = latRange[1] - latRange[0];
 
-    // TOOD use this instead of gs.w / gs.h
+    // TODO use this instead of gs.w / gs.h
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
+
+    // TODO consider frame width into figure w/h
 
     // center of the projection is given by the lon/lat ranges
     map.setCenter = function setCenter() {
@@ -215,7 +217,7 @@ map.setConvert = function setConvert(gd) {
         ];
     };
 
-    // Is this more intuitive
+    // is this more intuitive?
     map.setRotate = function setRotate() {
         var rotate = projLayout.rotate;
         projLayout._rotate = [
@@ -452,12 +454,13 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
+        gs = fullLayout._gs,
         projLayout = fullLayout.map.projection,
         isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
-        .attr("width", fullLayout._gs.w)
-        .attr("height", fullLayout._gs.h);
+        .attr("width", gs.w)
+        .attr("height", gs.h);
 
     svg.append("g")
         .classed("basemap", true);
@@ -756,6 +759,7 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
     };
 };
 
+// [hot code path] (re)draw all paths which depend on map.projection
 map.drawPaths = function drawPaths() {
     var projection = map.projection,
         path = d3.geo.path().projection(projection);
@@ -774,7 +778,7 @@ map.drawPaths = function drawPaths() {
     if (isClipped) {
         d3.select("path.sphere")
             .attr("d", path);
-        // hide paths over the edge
+        // hide paths over edges
         d3.selectAll("path.point")
             .attr("opacity", function(d) {
                 var p = projection.rotate(),
@@ -860,7 +864,9 @@ map.style = function style(gd) {
 
     map.lineLayers.forEach(function(layer){
         var s = d3.select("path." + layer);
-        if (layer!=='coastlines') layer += 'line';  // coastline is an exception
+
+        // coastline is an exception
+        if (layer!=='coastlines') layer += 'line';
 
         s.attr("fill", "none")
          .attr("stroke", mapLayout[layer + 'color'])
@@ -873,9 +879,10 @@ map.style = function style(gd) {
         s.attr("fill", "none")
          .attr("stroke", mapLayout[ax].gridcolor)
          .attr("stroke-width", mapLayout[ax].gridwidth)
-         .attr("stroke-opacity", 0.5);
+         .attr("stroke-opacity", 0.5);  // TODO generalize
     });
 
+    // TODO generalize
     var colorscale = d3.scale.log()
         .range(["hsl(62,100%,90%)", "hsl(228,30%,20%)"])
         .interpolate(d3.interpolateHcl);
@@ -885,7 +892,7 @@ map.style = function style(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            // TODO generalize
+            // TODO generalize (bis)
             colorscale.domain([d3.quantile(trace.z, 0.01),
                                d3.quantile(trace.z, 0.99)]);
 

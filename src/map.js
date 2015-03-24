@@ -62,10 +62,12 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var resolution = coerceMap('resolution', '110m');
     coerceMap('_topojson', scope + '_' + resolution);
 
+    // TODO implement this!
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     var type = coerceMapNest('projection', 'type', 'equirectangular');
     coerceMapNest('projection', '_isClipped', (type in map.CLIPANGLES));
+
     coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
@@ -214,6 +216,8 @@ map.setConvert = function setConvert(gd) {
     };
 
     // initial translation
+    // TODO into merge setScale
+    // with http://bl.ocks.org/phil-pedruco/9999984 ?
     map.setTranslate = function setTranslate() {
         projLayout._translate = [
             gs.l + gs.w / 2,
@@ -232,7 +236,7 @@ map.setConvert = function setConvert(gd) {
 
     // these don't need a projection; call them here
     map.setCenter();
-    map.setTranslate();  // TODO into merge setScale?
+    map.setTranslate();
     map.setRotate();
 
     // setScale needs a initial projection; it is called from makeProjection
@@ -539,6 +543,7 @@ map.makeSVG = function makeSVG(gd) {
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
         .scaleExtent([
+            // TODO something smarter!!!
             projLayout._fullScale,
             10 * projLayout._fullScale
         ])
@@ -549,6 +554,9 @@ map.makeSVG = function makeSVG(gd) {
             map.projection.scale(d3.event.scale);
             handleZoom();
             map.drawPaths();
+        })
+        .on("zoomend", function() {
+            // map.drawPaths();  // TODO do this on the highest resolution!
         });
 
     var dblclick = function() {
@@ -559,7 +567,7 @@ map.makeSVG = function makeSVG(gd) {
 
     svg
         .call(zoom)
-        .on("dblclick.zoom", null)
+        .on("dblclick.zoom", null)  // N.B. disable dblclick zoom default
         .on("dblclick", dblclick);
 
    return svg;
@@ -584,6 +592,7 @@ map.init = function init(gd) {
     map.baselayers = map.fillLayers.concat(map.lineLayers);
     map.baselayersOverChoropleth = ['rivers', 'lakes'];
 
+    // make SVG layers and attach events
     map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(s, layer) {
@@ -594,7 +603,7 @@ map.init = function init(gd) {
                 {type: 'Sphere'} :
                 topojson.feature(topo, topo.objects[layer]);
 
-          s.append("g")
+            s.append("g")
                 .datum(datum)
                 .attr("class", layer)
               .append("path")
@@ -623,7 +632,7 @@ map.init = function init(gd) {
            latExtent,
            graticule;
 
-        // [DEBUG] grit line fixed to lon/lat axis ranges
+        // [DEBUG] grid line fixed to lon/lat axis ranges
         if (map.DEBUG) {
             lonExtent = {
                 lonaxis: [axLayout.tick0, axLayout.range[1]],
@@ -734,7 +743,7 @@ map.init = function init(gd) {
             }
         });
 
-    map.drawPaths();  // draw the paths
+    map.drawPaths();  // draw the paths for the first time
 };
 
 map.makeLineGeoJSON = function makeLineGeoJSON(d) {
@@ -807,6 +816,7 @@ map.pointStyle = function pointStyle(s, trace) {
                 var rs = d3.round(r,2);
                 return 'M'+rs+','+rs+'H-'+rs+'V-'+rs+'H'+rs+'Z';
             }
+            // ... more to come ...
         };
 
     s.each(function(d) {

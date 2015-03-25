@@ -6,14 +6,18 @@ var map = {};
 // - boundary around rangeBox polygon (used to determine projection scale)
 map.DEBUG = true;
 
-// TODO better handle full range for these projections
-// these depend on rotate
-map.FULLRANGE = {
-    'orthographic': [-45, 45]
+// -------------------------------------------------------------------------------
+
+// full angular span in degrees
+map.SPANANGLE = {
+    lonaxis: 360,
+    lataxis: 180
 };
 
-// max angular span (projections not listed get full angular span)
-map.CLIPANGLES = {
+// max angular span used to clip map layers
+// (projections not listed get full angular span)
+// TODO are these relevant only for lonaxis?
+map.CLIPANGLE = {
     orthographic: 90,
     azimuthalEqualArea: 180,
     azimuthalEquidistant: 180,
@@ -85,9 +89,10 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
-    coerceMapNest('projection', '_isClipped', (projType in map.CLIPANGLES));
+    var isClipped = coerceMapNest('projection', '_isClipped',
+                                  (projType in map.CLIPANGLE));
 
-    coerceMapNest('projection', 'rotate', [0, 0]);
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
     coerceMapNest('projection', 'parallels', null);
@@ -121,9 +126,18 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('framelinecolor', 'black');
     coerceMap('framelinewidth', 2);
 
-    coerceMapNest('lonaxis', 'autorange', !isValidRange(layout, 'lonaxis'));
-    var lonrange = coerceMapNest('lonaxis', 'range',
-        (type in map.FULLRANGE) ? map.FULLRANGE[type] : [-180, 180]);
+    var autorange,
+        halfspan;
+
+    autorange = coerceMapNest('lonaxis', 'autorange',
+                              !isValidRange(layout, 'lonaxis'));
+
+    halfspan = (isClipped) ?
+        map.CLIPANGLE[projType] :
+        map.SPANANGLE['lonaxis'] / 2;
+    coerceMapNest('lonaxis', 'range',
+                  [rotate[0] - halfspan, rotate[0] + halfspan]);
+
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonrange[0]);
     coerceMapNest('lonaxis', 'dtick', 30);
@@ -132,8 +146,13 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // TODO add zeroline attributes
 
-    coerceMapNest('lataxis', 'autorange', !isValidRange(layout, 'lataxis'));
-    var latrange = coerceMapNest('lataxis', 'range', [-90, 90]);
+    autosize = coerceMapNest('lataxis', 'autorange',
+                             !isValidRange(layout, 'lataxis'));
+
+    halfspan = map.SPANANGLE['lataxis'] / 2;
+    coerceMapNest('lataxis', 'range',
+                  [rotate[1] - halfspan, rotate[1] + halfspan]);
+
     coerceMapNest('lataxis', 'showgrid', true);
     coerceMapNest('lataxis', 'tick0', latrange[0]);
     coerceMapNest('lataxis', 'dtick', 10);
@@ -232,10 +251,11 @@ map.setConvert = function setConvert(gd) {
     // TODO consider frame width into figure w/h
 
     // add padding at antemeridian to avoid aliasing
-    var lon0 = lonLayout.range[0]===-180 ? -180 + map.CLIPPAD : lonLayout.range[0],
-        lon1 = lonLayout.range[1]===180 ? 180 - map.CLIPPAD : lonLayout.range[1],
-        lat0 = latLayout.range[0],
-        lat1 = latLayout.range[1],
+    // TODO this probably too crude in general
+    var lon0 = lonLayout.range[0] + map.CLIPPAD,
+        lon1 = lonLayout.range[1] - map.CLIPPAD,
+        lat0 = latLayout.range[0] + map.CLIPPAD,
+        lat1 = latLayout.range[1] - map.CLIPPAD,
         dlon = lon1 - lon0,
         dlat = lat1 - lat0;
 
@@ -352,8 +372,8 @@ map.makeProjection = function makeProjection(gd) {
         .rotate(projLayout._rotate)
         .precision(map.PRECISION);
 
-    if (projType in map.CLIPANGLES) {
-        projection.clipAngle(map.CLIPANGLES[projType] - map.CLIPPAD);
+    if (projType in map.CLIPANGLE) {
+        projection.clipAngle(map.CLIPANGLE[projType] - map.CLIPPAD);
     }
 
     if (projLayout.parallels) {

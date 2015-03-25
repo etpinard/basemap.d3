@@ -208,9 +208,7 @@ map.setConvert = function setConvert(gd) {
         projLayout = mapLayout.projection,
         isClipped = projLayout._isClipped,
         lonLayout = mapLayout.lonaxis,
-        latLayout = mapLayout.lataxis,
-        lonRange = lonLayout.range,
-        latRange = latLayout.range;
+        latLayout = mapLayout.lataxis;
 
     var gs = fullLayout._gs = {};
 
@@ -222,20 +220,25 @@ map.setConvert = function setConvert(gd) {
     gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
     gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
-    var lonDiff = lonRange[1] - lonRange[0],
-        latDiff = latRange[1] - latRange[0];
-
     // TODO use this instead of gs.w / gs.h
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
     // TODO consider frame width into figure w/h
 
+    // add padding at antemeridian to avoid aliasing
+    var lon0 = lonLayout.range[0]===-180 ? -180 + map.CLIPPAD : lonLayout.range[0],
+        lon1 = lonLayout.range[1]===180 ? 180 - map.CLIPPAD : lonLayout.range[1],
+        lat0 = latLayout.range[0],
+        lat1 = latLayout.range[1],
+        dlon = lon1 - lon0,
+        dlat = lat1 - lat0;
+
     // center of the projection is given by the lon/lat ranges
     map.setCenter = function setCenter() {
         projLayout._center = [
-            lonRange[0] + lonDiff / 2,
-            latRange[0] + latDiff / 2
+            lon0 + dlon / 2,
+            lat0 + dlat / 2
         ];
     };
 
@@ -280,11 +283,13 @@ map.setConvert = function setConvert(gd) {
         var rangeBox = {
             type: "Polygon",
             coordinates: [
-              [ [lonRange[0], latRange[0]],
-                [lonRange[0], latRange[1]],
-                [lonRange[1], latRange[1]],
-                [lonRange[1], latRange[0]],
-                [lonRange[0], latRange[0]] ]
+              [ [lon0, lat0],
+                [lon0, lat1],
+                [projLayout._center[0], lat1],  // to well-define direction
+                [lon1, lat1],
+                [lon1, lat0],
+                [projLayout._center[0], lat0],  // to well-define direction
+                [lon0, lat0] ]
             ]
         };
 
@@ -305,6 +310,8 @@ map.setConvert = function setConvert(gd) {
             scale0 * gs.h / (bounds[1][1] - bounds[0][1])
         );
         projection.scale(scale);
+
+        // TODO scale is off for gnomonic / stereographic / orthographic
 
         // translate the projection so that the top-left corner
         // of the range box is at the top-left corner of the viewbox

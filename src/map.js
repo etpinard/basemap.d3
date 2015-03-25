@@ -3,7 +3,8 @@ var map = {};
 // Enable debug mode:
 // - boundary around fullLayout.width / height
 // - grid line fixed to lon/lat axis ranges
-map.DEBUG = false;
+// - boundary around rangeBox polygon (used to determine projection scale)
+map.DEBUG = true;
 
 // TODO better handle full range for these projections
 // these depend on rotate
@@ -283,6 +284,8 @@ map.setConvert = function setConvert(gd) {
             ]
         };
 
+        if (map.DEBUG) map.rangeBox = rangeBox;
+
         // bounds array [[top,left] [bottom,right]]
         // of the lon/lat range box
         function getBounds(projection) {
@@ -509,6 +512,14 @@ map.makeSVG = function makeSVG(gd) {
             .attr("fill", "none")
             .attr("stroke", "red")
             .attr("stroke-width", 6);
+
+        svg.append("g")
+            .datum(map.rangeBox)
+          .append("path")
+            .attr("d", d3.geo.path().projection(map.projection))
+            .attr("fill", "none")
+            .attr("stroke", "green")
+            .attr("stroke-width", 6);
     }
 
     var m0,  // variables for dragging
@@ -654,12 +665,12 @@ map.init = function init(gd) {
         // [DEBUG] grid line fixed to lon/lat axis ranges
         if (map.DEBUG) {
             lonExtent = {
-                lonaxis: [axLayout.tick0, axLayout.range[1]],
+                lonaxis: axLayout.range,
                 lataxis: otherAxLayout.range
             }[ax];
             latExtent = {
                 lonaxis: otherAxLayout.range,
-                lataxis: [axLayout.tick0, axLayout.range[1]]
+                lataxis: axLayout.range
             }[ax];
         }
         else {

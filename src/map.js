@@ -2,7 +2,6 @@ var map = {};
 
 // Enable debug mode:
 // - boundary around fullLayout.width / height
-// - grid line fixed to lon/lat axis ranges
 // - boundary around rangeBox polygon (used to determine projection scale)
 map.DEBUG = true;
 
@@ -13,6 +12,8 @@ map.SPANANGLE = {
     lonaxis: 360,
     lataxis: 180
 };
+
+// TODO angular span for scopes
 
 // max angular span used to clip map layers
 // (projections not listed get full angular span)
@@ -129,35 +130,40 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var autorange,
         halfspan;
 
+
+    // lonaxis attributes
     autorange = coerceMapNest('lonaxis', 'autorange',
                               !isValidRange(layout, 'lonaxis'));
 
     halfspan = (isClipped) ?
         map.CLIPANGLE[projType] :
         map.SPANANGLE['lonaxis'] / 2;
-    coerceMapNest('lonaxis', 'range',
-                  [rotate[0] - halfspan, rotate[0] + halfspan]);
+    coerceMapNest('lonaxis', '_halfspan', halfspan)
+    var lonRange = coerceMapNest('lonaxis', 'range',
+                                 [rotate[0] - halfspan, rotate[0] + halfspan]);
 
     coerceMapNest('lonaxis', 'showgrid', true);
-    coerceMapNest('lonaxis', 'tick0', lonrange[0]);
+    coerceMapNest('lonaxis', 'tick0', lonRange[0]);
     coerceMapNest('lonaxis', 'dtick', 30);
     coerceMapNest('lonaxis', 'gridcolor', '#777');
     coerceMapNest('lonaxis', 'gridwidth', 1);
 
-    // TODO add zeroline attributes
-
+    // lataxis attributes
     autosize = coerceMapNest('lataxis', 'autorange',
                              !isValidRange(layout, 'lataxis'));
 
     halfspan = map.SPANANGLE['lataxis'] / 2;
-    coerceMapNest('lataxis', 'range',
-                  [rotate[1] - halfspan, rotate[1] + halfspan]);
+    coerceMapNest('lataxis', '_halfspan', halfspan)
+    var latRange = coerceMapNest('lataxis', 'range',
+                                 [rotate[1] - halfspan, rotate[1] + halfspan]);
 
     coerceMapNest('lataxis', 'showgrid', true);
-    coerceMapNest('lataxis', 'tick0', latrange[0]);
+    coerceMapNest('lataxis', 'tick0', latRange[0]);
     coerceMapNest('lataxis', 'dtick', 10);
     coerceMapNest('lataxis', 'gridcolor', '#777');
     coerceMapNest('lataxis', 'gridwidth', 1);
+
+    // TODO add zeroline attributes
 
     fullLayout.map = mapFullLayout;
     gd._fullLayout = fullLayout;
@@ -647,6 +653,7 @@ map.init = function init(gd) {
     var topo = map.topo,
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
         gBasemap,
         gGraticule,
         gData,
@@ -687,55 +694,41 @@ map.init = function init(gd) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
-    function plotGraticule(s, ax) {
-        var otherAx = {
-                lonaxis: 'lataxis',
-                lataxis: 'lonaxis'
-            }[ax],
-            axLayout = fullLayout.map[ax],
-            otherAxLayout = fullLayout.map[otherAx],
-            step = {
-                lonaxis: [axLayout.dtick],
-                lataxis: [0, axLayout.dtick]
-            }[ax],
-           lonExtent,
-           latExtent,
-           graticule;
+    function plotGraticules(s) {
+        var axes = ['lonaxis', 'lataxis'],
+            lonLayout = mapLayout.lonaxis,
+            latLayout = mapLayout.lataxis,
+            graticule = {};
 
-        // [DEBUG] grid line fixed to lon/lat axis ranges
-        if (map.DEBUG) {
-            lonExtent = {
-                lonaxis: axLayout.range,
-                lataxis: otherAxLayout.range
-            }[ax];
-            latExtent = {
-                lonaxis: otherAxLayout.range,
-                lataxis: axLayout.range
-            }[ax];
-        }
-        else {
-            // TODO should be 'FULLRANGE'
-            // and something smarter for scopes
-            lonExtent = [-180, 180];
-            latExtent = [-90, 90];
+        function makeGraticule(step) {
+            // TODO scope extent!
+            return d3.geo.graticule()
+                .extent([
+                    [-180, 90], [180, -90]
+                ])
+                .step(step);
         }
 
-        graticule =  d3.geo.graticule()
-            .extent([
-                [lonExtent[0], latExtent[0]],
-                [lonExtent[1], latExtent[1]]
-            ])
-            .step(step);
-
-        s.append("path")
-         .attr("class", ax + 'graticule')
-         .datum(graticule);
+        function plotGraticule(axis) {
+            s.append("path")
+             .attr("class", axis + 'graticule')
+             .datum(graticule[axis]);
         }
+
+        if (lonLayout.showgrid) {
+            graticule.lonaxis = makeGraticule([lonLayout.dtick]);
+            plotGraticule('lonaxis');
+        }
+
+        if (latLayout.showgrid) {
+            graticule.lataxis = makeGraticule([0, latLayout.dtick]);
+            plotGraticule('lataxis');
+        }
+    }
 
     // graticule layers - should these be over choropleth?
     gGraticule = map.svg.select("g.graticule");
-    if (fullLayout.map.lonaxis.showgrid) plotGraticule(gGraticule, 'lonaxis');
-    if (fullLayout.map.lataxis.showgrid) plotGraticule(gGraticule, 'lataxis');
+    plotGraticules(gGraticule);
 
     // bind calcdata to SVG
     gData = map.svg.select("g.data")

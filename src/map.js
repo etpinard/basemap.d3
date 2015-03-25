@@ -310,16 +310,24 @@ map.setConvert = function setConvert(gd) {
         // using the path determine the bounds of the current map and use
         // these to determine better values for the scale and translation
 
+        // TODO is this enough to handle ALL cases?
+        var dlon4 = dlon / 4;
+
         // polygon GeoJSON corresponding to lon/lat range box
+        // with well-defined direction
         var rangeBox = {
             type: "Polygon",
             coordinates: [
               [ [lon0, lat0],
-                [lon0, lat1],
-                [projLayout._center[0], lat1],  // to well-define direction
+                [lon0 , lat1],
+                [lon0 + dlon4, lat1],
+                [lon0 + 2*dlon4, lat1],
+                [lon0 + 3*dlon4, lat1],
                 [lon1, lat1],
                 [lon1, lat0],
-                [projLayout._center[0], lat0],  // to well-define direction
+                [lon1 - dlon4, lat0],
+                [lon1 - 2*dlon4, lat0],
+                [lon1 - 3*dlon4, lat0],
                 [lon0, lat0] ]
             ]
         };

@@ -12,13 +12,17 @@ map.FULLRANGE = {
     'orthographic': [-45, 45]
 };
 
+// max angular span (projections not listed get full angular span)
 map.CLIPANGLES = {
-    'orthographic': 90,
-    'azimuthalEqualArea': 180 - 1e-3,
-    'azimuthalEquidistant': 180 - 1e-3,
-    'gnomonic': 90 - 1e-3,   // TODO larger precision (for large zoom)
-    'stereographic': 180 - 1e-3  // TODO larger clip angle (for large zoom)
+    orthographic: 90,
+    azimuthalEqualArea: 180,
+    azimuthalEquidistant: 180,
+    gnomonic: 90,
+    stereographic: 180
 };
+
+// pad with respect to clip angles
+map.CLIPPAD = 1e-3;
 
 map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     if (!(astr in containerIn)) {
@@ -75,8 +79,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     // TODO implement this!
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
-    var type = coerceMapNest('projection', 'type', 'equirectangular');
-    coerceMapNest('projection', '_isClipped', (type in map.CLIPANGLES));
+    var projType = coerceMapNest('projection', 'type', 'equirectangular');
+    coerceMapNest('projection', '_isClipped', (projType in map.CLIPANGLES));
 
     coerceMapNest('projection', 'rotate', [0, 0]);
 
@@ -336,9 +340,13 @@ map.makeProjection = function makeProjection(gd) {
         .rotate(projLayout._rotate)
         .precision(0.1);
 
-    if (projType in map.CLIPANGLES) projection.clipAngle(map.CLIPANGLES[projType]);
+    if (projType in map.CLIPANGLES) {
+        projection.clipAngle(map.CLIPANGLES[projType] - map.CLIPPAD);
+    }
 
-    if (projLayout.parallels) projection.parallels(projLayout.parallels);
+    if (projLayout.parallels) {
+        projection.parallels(projLayout.parallels);
+    }
 
     // ... the big one!
     if (map._setScale===undefined) map.setScale(projection);

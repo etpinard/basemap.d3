@@ -53,6 +53,15 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
     }
 
+    function isValidRange(layout, ax) {
+        var axLayout = layout.map[ax];
+        // TODO add isNumeric test
+        return (axLayout &&
+            'range' in axLayout) &&
+            Array.isArray(axLayout.range) &&
+            axLayout.range.length===2;
+    }
+
     coerce('width', 700);
     coerce('height', 450);
 
@@ -102,6 +111,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('framelinecolor', 'black');
     coerceMap('framelinewidth', 2);
 
+    coerceMapNest('lonaxis', 'autorange', !isValidRange(layout, 'lonaxis'));
     var lonrange = coerceMapNest('lonaxis', 'range',
         (type in map.FULLRANGE) ? map.FULLRANGE[type] : [-180, 180]);
     coerceMapNest('lonaxis', 'showgrid', true);
@@ -112,6 +122,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // TODO add zeroline attributes
 
+    coerceMapNest('lataxis', 'autorange', !isValidRange(layout, 'lataxis'));
     var latrange = coerceMapNest('lataxis', 'range', [-90, 90]);
     coerceMapNest('lataxis', 'showgrid', true);
     coerceMapNest('lataxis', 'tick0', latrange[0]);
@@ -175,6 +186,14 @@ map.supplyDefaults = function supplyDefaults(gd) {
     }
 
     gd._fullData = fullData;
+};
+
+map.doAutoRange = function doAutoRange(gd) {
+
+    // TODO
+    // based on data!
+
+
 };
 
 map.setConvert = function setConvert(gd) {
@@ -920,6 +939,7 @@ map.plot = function plot(gd) {
 
     map.supplyLayoutDefaults(gd);
     map.supplyDefaults(gd);
+    map.doAutoRange(gd);
 
     map.setConvert(gd);
     map.makeProjection(gd);

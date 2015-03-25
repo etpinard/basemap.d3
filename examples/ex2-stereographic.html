@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="../src/basemap.css" />
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/d3.geo.projection.v0.min.js" charset="utf-8"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="../src/map.js"></script>
+<script>
+var gd = {};
+
+gd.data = [
+    {
+        type: "choropleth",
+        loc: ["CAN", "USA", "RUS", "AUS", "FRA"],
+        z: [80, 20, 100, 60, 40]
+    },
+    {
+        type: "map-scatter",
+        mode: "lines",
+        lon: [-77, 116],
+        lat: [39, 24],
+        line: {
+            color: 'rgb(0, 255, 255)',
+            width: 5
+        }
+    },
+    {
+        type: "map-scatter",
+        mode: "markers",
+        lon: [0, 0, 45, 90],
+        lat: [0, 90, 45, 0],
+        marker: {
+            color: 'rgb(255,0,0)',
+            size: 20
+        }
+    }
+];
+
+gd.layout = {
+    width: 1000,
+    height: 1000,
+    map: {
+        projection: {
+            type: 'stereographic',
+            rotate: [0, 90]
+        },
+        //
+        showcoastlines: true,
+        coastlinescolor: "black",
+        coastlineswidth: 2,
+        //
+        showland: true,
+        landfillcolor: "#3B5323",
+        //
+        showocean: true,
+        oceanfillcolor: "#3399FF",
+        //
+        showcountries: false,
+        countrieslinecolor: "#aaa",
+        countrieslinewidth: 1,
+        //
+        showsubunits: false,
+        subunitslinecolor: "#aaa",
+        subunitslinewidth: 1,
+        //
+        lonaxis: {
+            showgrid: false,
+            gridwidth: 2,
+            gridcolor: "black"
+        },
+        lataxis: {
+            range: [45, 90],
+            gridwidth: 2,
+            gridcolor: "black"
+        }
+    }
+};
+
+map.plot(gd);
+</script>
+</body>

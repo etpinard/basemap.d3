@@ -24,6 +24,11 @@ map.CLIPANGLES = {
 // pad with respect to clip angles
 map.CLIPPAD = 1e-3;
 
+// map projection precision
+map.PRECISION = 0.1;
+
+// -------------------------------------------------------------------------------
+
 map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     if (!(astr in containerIn)) {
         containerOut[astr] = dflt;
@@ -345,7 +350,7 @@ map.makeProjection = function makeProjection(gd) {
         .translate(projLayout._translate)
         .center(projLayout._center)
         .rotate(projLayout._rotate)
-        .precision(0.1);
+        .precision(map.PRECISION);
 
     if (projType in map.CLIPANGLES) {
         projection.clipAngle(map.CLIPANGLES[projType] - map.CLIPPAD);

@@ -42,21 +42,8 @@ gd.layout = {
     height: 1000,
     map: {
         projection: {
-//             type: 'equirectangular',
-//             type: 'mercator',
-//             type: 'azimuthalEqualArea',
-//             type: 'azimuthalEquidistant',
-//             type: 'conicEqualArea',
-//             type: 'conicConformal',
-//             type: 'conicEquidistant',
-//             type: 'gnomonic',
-//             type: 'stereographic',
-//             type: 'orthographic',
-//             type: 'transverseMercator',
-//             type: 'albersUsa',
-//             type: 'kavrayskiy7',
-            //
-            rotate: [90, 0]
+            type: 'gnomonic',
+            rotate: [-50, 90]
         },
         //
         showcoastlines: true,
@@ -79,14 +66,11 @@ gd.layout = {
         //
         lonaxis: {
             showgrid: false,
-            range: [0, 180],
-//             range: [-180, 0],
-//             range: [-100, 100],
             gridwidth: 2,
             gridcolor: "black"
         },
         lataxis: {
-            range: [0, 70],
+            range: [60, 120],
             gridwidth: 2,
             gridcolor: "black"
         }

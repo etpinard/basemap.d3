@@ -137,8 +137,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     halfspan = (isClipped) ?
         map.CLIPANGLE[projType] :
-        map.SPANANGLE['lonaxis'] / 2;
-    coerceMapNest('lonaxis', '_halfspan', halfspan)
+        map.SPANANGLE.lonaxis / 2;
+    coerceMapNest('lonaxis', '_halfspan', halfspan);
     var lonRange = coerceMapNest('lonaxis', 'range',
                                  [rotate[0] - halfspan, rotate[0] + halfspan]);
 
@@ -154,8 +154,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     autosize = coerceMapNest('lataxis', 'autorange',
                              !isValidRange(layout, 'lataxis'));
 
-    halfspan = map.SPANANGLE['lataxis'] / 2;
-    coerceMapNest('lataxis', '_halfspan', halfspan)
+    halfspan = map.SPANANGLE.lataxis / 2;
+    coerceMapNest('lataxis', '_halfspan', halfspan);
     var latRange = coerceMapNest('lataxis', 'range',
                                  [rotate[1] - halfspan, rotate[1] + halfspan]);
 
@@ -257,8 +257,8 @@ map.setConvert = function setConvert(gd) {
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
     // TODO handle scopes!
-    lonLayout._fullRange = [-180, -180 + map.SPANANGLE['lonaxis']];
-    latLayout._fullRange = [-90, -90 + map.SPANANGLE['lataxis']];
+    lonLayout._fullRange = [-180, -180 + map.SPANANGLE.lonaxis];
+    latLayout._fullRange = [-90, -90 + map.SPANANGLE.lataxis];
 
     // TODO consider frame width into figure w/h
 

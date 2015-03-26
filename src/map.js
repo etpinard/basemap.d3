@@ -87,6 +87,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('_topojson', scope + '_' + resolution);
 
     // TODO implement this!
+    // 'rotate' or 'translate'
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
@@ -130,7 +131,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var autorange,
         halfspan;
 
-
     // lonaxis attributes
     autorange = coerceMapNest('lonaxis', 'autorange',
                               !isValidRange(layout, 'lonaxis'));
@@ -141,6 +141,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMapNest('lonaxis', '_halfspan', halfspan)
     var lonRange = coerceMapNest('lonaxis', 'range',
                                  [rotate[0] - halfspan, rotate[0] + halfspan]);
+
+    // TODO validate range given rotate
 
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonRange[0]);
@@ -265,14 +267,6 @@ map.setConvert = function setConvert(gd) {
         dlon = lon1 - lon0,
         dlat = lat1 - lat0;
 
-    // center of the projection is given by the lon/lat ranges
-    map.setCenter = function setCenter() {
-        projLayout._center = [
-            lon0 + dlon / 2,
-            lat0 + dlat / 2
-        ];
-    };
-
     // initial translation
     // TODO into merge setScale
     // with http://bl.ocks.org/phil-pedruco/9999984 ?
@@ -292,10 +286,24 @@ map.setConvert = function setConvert(gd) {
         ];
     };
 
+    // center of the projection is given by
+    // the lon/lat ranges and the rotate angle
+    map.setCenter = function setCenter() {
+        var c0 = [
+                lon0 + dlon / 2,
+                lat0 + dlat / 2
+            ],
+            r = projLayout._rotate;
+        projLayout._center = [
+            c0[0] + r[0],
+            c0[1] + r[1]
+        ];
+    };
+
     // these don't need a projection; call them here
-    map.setCenter();
     map.setTranslate();
     map.setRotate();
+    map.setCenter();
 
     // setScale needs a initial projection; it is called from makeProjection
     map.setScale = function setScale(projection) {
@@ -382,8 +390,8 @@ map.makeProjection = function makeProjection(gd) {
 
     projection = d3.geo[projType]()
         .translate(projLayout._translate)
-        .center(projLayout._center)
         .rotate(projLayout._rotate)
+        .center(projLayout._center)
         .precision(map.PRECISION);
 
     if (projType in map.CLIPANGLE) {
@@ -578,17 +586,20 @@ map.makeSVG = function makeSVG(gd) {
 
     var m0,  // variables for dragging
         o0,
-        t0;
+        t0,
+        c0;
 
     function handleZoomStart() {
         var p = map.projection.rotate(),
-            t = map.projection.translate();
+            t = map.projection.translate(),
+            c = map.projection.center();
         m0 = [
             d3.event.sourceEvent.pageX,
             d3.event.sourceEvent.pageY
         ];
         o0 = [-p[0], -p[1]];
         t0 = [t[0], t[1]];
+        c0 = [c[0], c[1]];
     }
 
     function handleZoom() {
@@ -605,6 +616,10 @@ map.makeSVG = function makeSVG(gd) {
             t1 = [
                 t0[0] + (m0[0] - m1[0]),
                 t0[1] + (m1[1] - m0[1])
+            ],
+            c1 = [
+                c0[0] + (m0[0] - m1[0]) / 4,
+                c0[1] + (m1[1] - m0[1]) / 4
             ];
 
         if (isClipped) {
@@ -619,7 +634,9 @@ map.makeSVG = function makeSVG(gd) {
             // if scale is greater than fullScale
             // TODO more conditions?
             if (map.projection.scale() > projLayout._fullScale) {
-                map.projection.translate([t0[0], t1[1]]);
+//                 map.projection.translate([t0[0], t1[1]]);
+                // TODO does 'center' work as well as 'translate' ?
+                map.projection.center([c0[0], c1[1]]);
             }
         }
     }

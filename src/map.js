@@ -378,7 +378,10 @@ map.setConvert = function setConvert(gd) {
         var rangeBox = makeRangeBox(lon0, lat0, lon1, lat1);
             fullRangeBox = makeRangeBox(lonfull0, latfull0, lonfull1, latfull1);
 
-        if (map.DEBUG) map.rangeBox = rangeBox;
+        if (map.DEBUG) {
+            map.rangeBox = rangeBox;
+            map.fullRangeBox = fullRangeBox;
+        }
 
         // scale projection given how range box get deformed
         // by the projection
@@ -413,8 +416,10 @@ map.setConvert = function setConvert(gd) {
 
         // TODO latitude clipping is ill-defined for azimuthal projections
 
-        // TODO compute effective width / height with bounds
-        // and use it for container width/height
+        // Effective width / height of container
+        // TODO handle margin and domains?
+        gs.wEff = Math.round(bounds[1][0]);
+        gs.hEff = Math.round(bounds[1][1]);
 
         // TODO add clipping along meridian/parallels option
 
@@ -591,8 +596,8 @@ map.makeSVG = function makeSVG(gd) {
         isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
-        .attr("width", gs.w)
-        .attr("height", gs.h);
+        .attr("width", map.DEBUG ? gs.w : gs.wEff)
+        .attr("height", map.DEBUG ? gs.h : gs.hEff);
 
     svg.append("g")
         .classed("basemap", true);

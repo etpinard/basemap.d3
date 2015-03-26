@@ -256,6 +256,10 @@ map.setConvert = function setConvert(gd) {
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
+    // TODO handle scopes!
+    lonLayout._fullRange = [-180, -180 + map.SPANANGLE['lonaxis']];
+    latLayout._fullRange = [-90, -90 + map.SPANANGLE['lataxis']];
+
     // TODO consider frame width into figure w/h
 
     // add padding at antemeridian to avoid aliasing
@@ -263,9 +267,12 @@ map.setConvert = function setConvert(gd) {
     var lon0 = lonLayout.range[0] + map.CLIPPAD,
         lon1 = lonLayout.range[1] - map.CLIPPAD,
         lat0 = latLayout.range[0] + map.CLIPPAD,
-        lat1 = latLayout.range[1] - map.CLIPPAD,
-        dlon = lon1 - lon0,
-        dlat = lat1 - lat0;
+        lat1 = latLayout.range[1] - map.CLIPPAD;
+
+    var lonfull0 = lonLayout._fullRange[0] + map.CLIPPAD,
+        lonfull1 = lonLayout._fullRange[1] - map.CLIPPAD,
+        latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
+        latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
 
     // initial translation
     // TODO into merge setScale
@@ -289,7 +296,9 @@ map.setConvert = function setConvert(gd) {
     // center of the projection is given by
     // the lon/lat ranges and the rotate angle
     map.setCenter = function setCenter() {
-        var c0 = [
+        var dlon = lon1 - lon0,
+            dlat = lat1 - lat0,
+            c0 = [
                 lon0 + dlon / 2,
                 lat0 + dlat / 2
             ],
@@ -320,10 +329,11 @@ map.setConvert = function setConvert(gd) {
         // polygon GeoJSON corresponding to lon/lat range box
         // with well-defined direction
         function makeRangeBox(lon0, lat0, lon1, lat1) {
-            var dlon4 = (lon1 - lon0) / 4;
+            var dlon4 = (lon1 - lon0) / 4,
+                rangeBox;
 
             // TODO is this enough to handle ALL cases?
-            return {
+            rangeBox = {
                 type: "Polygon",
                 coordinates: [
                   [ [lon0, lat0],
@@ -341,9 +351,11 @@ map.setConvert = function setConvert(gd) {
             };
 
             // or this, which might lead to better results
-//             return d3.geo.graticule()
+//          rangeBox = d3.geo.graticule()
 //                 .extent([[lon0, lat0], [lon1, lat1]])
 //                 .outline();
+
+            return rangeBox;
         }
 
         // bounds array [[top, left], [bottom, right]]
@@ -361,8 +373,7 @@ map.setConvert = function setConvert(gd) {
         }
 
         var rangeBox = makeRangeBox(lon0, lat0, lon1, lat1);
-            // TODO should be fullRange
-            fullRangeBox = makeRangeBox(-179, -89, 179, 89);
+            fullRangeBox = makeRangeBox(lonfull0, latfull0, lonfull1, latfull1);
 
         if (map.DEBUG) map.rangeBox = rangeBox;
 
@@ -752,10 +763,10 @@ map.init = function init(gd) {
             graticule = {};
 
         function makeGraticule(step) {
-            // TODO scope extent!
             return d3.geo.graticule()
                 .extent([
-                    [-180, 90], [180, -90]
+                    [lonLayout._fullRange[0], latLayout._fullRange[0]],
+                    [lonLayout._fullRange[1], latLayout._fullRange[1]]
                 ])
                 .step(step);
         }

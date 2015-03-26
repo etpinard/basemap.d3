@@ -22,7 +22,7 @@ map.CLIPANGLE = {
     orthographic: 90,
     azimuthalEqualArea: 180,
     azimuthalEquidistant: 180,
-    gnomonic: 90,
+    gnomonic: 80,  // TODO appears to make things work; is this correct?
     stereographic: 180
 };
 
@@ -865,12 +865,16 @@ map.drawPaths = function drawPaths() {
 
     if (isClipped) {
         // hide paths over edges
+        projType = fullLayout.map.projection.type;
         d3.selectAll("path.point")
             .attr("opacity", function(d) {
                 var p = projection.rotate(),
-                    angle = d3.geo.distance([d.lon, d.lat],
-                                            [-p[0], -p[1]]);
-                return (angle > Math.PI / 2) ? "0" : "1.0";
+                    angle = d3.geo.distance(
+                        [d.lon, d.lat],
+                        [-p[0], -p[1]]
+                    ),
+                    maxAngle = map.CLIPANGLE[projType] * Math.PI / 180;
+                return (angle > maxAngle) ? "0" : "1.0";
             });
     }
 

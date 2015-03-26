@@ -333,6 +333,8 @@ map.setConvert = function setConvert(gd) {
                 rangeBox;
 
             // TODO is this enough to handle ALL cases?
+            // -- this makes scaling less precise as
+            //    great circle overshoot the boundary
             rangeBox = {
                 type: "Polygon",
                 coordinates: [
@@ -351,7 +353,8 @@ map.setConvert = function setConvert(gd) {
             };
 
             // or this, which might lead to better results
-//          rangeBox = d3.geo.graticule()
+            // -- this messed up orthographic with rotate[1] = big
+//              rangeBox = d3.geo.graticule()
 //                 .extent([[lon0, lat0], [lon1, lat1]])
 //                 .outline();
 

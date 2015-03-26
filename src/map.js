@@ -3,7 +3,7 @@ var map = {};
 // Enable debug mode:
 // - boundary around fullLayout.width / height
 // - boundary around rangeBox polygon (used to determine projection scale)
-map.DEBUG = true;
+map.DEBUG = false;
 
 // -------------------------------------------------------------------------------
 

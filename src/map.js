@@ -586,7 +586,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         gs = fullLayout._gs,
-        projLayout = fullLayout.map.projection,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection,
         isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
@@ -649,36 +650,53 @@ map.makeSVG = function makeSVG(gd) {
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
             ],
+            dmx = m0[0] - m1[0],
+            dmy = m1[1] - m0[1],
             o1 = [
-                o0[0] + (m0[0] - m1[0]) / 4,
-                o0[1] + (m1[1] - m0[1]) / 4
+                o0[0] + dmx / 4,
+                o0[1] + dmy / 4
             ],
-            t1 = [
-                t0[0] + (m0[0] - m1[0]),
-                t0[1] + (m1[1] - m0[1])
+            t1 = [  // TODO is this obsolete?
+                t0[0] + dmx,
+                t0[1] + dmy
             ],
             c1 = [
-                c0[0] + (m0[0] - m1[0]) / 4,
-                c0[1] + (m1[1] - m0[1]) / 4
+                c0[0] + dmx / 4,
+                c0[1] + dmy / 4
             ];
 
-        if (isClipped) {
+        function handleClipped() {
             // clipped projections are panned by rotation
             map.projection.rotate([-o1[0], -o1[1]]);
         }
-        else {
+
+        function handleNonClipped() {
             // non-clipped projections are panned
             // by rotation along lon
-            map.projection.rotate([-o1[0], -o0[1]]);
             // and by translation along lat
-            // if scale is greater than fullScale
-            // TODO more conditions?
-            if (map.projection.scale() > projLayout._fullScale) {
-//                 map.projection.translate([t0[0], t1[1]]);
-                // TODO does 'center' work as well as 'translate' ?
-                map.projection.center([c0[0], c1[1]]);
-            }
+
+            map.projection.rotate([-o1[0], -o0[1]]);
+
+            // TODO Do all non-clipped projection have an inverse?
+            // TODO Why does this give different results during pan?
+//             var halfspan = map.projection.invert([0, map.bounds[1] / 2])[1]
+
+            var latLayout = mapLayout.lataxis,
+                latRange = latLayout.range,
+                latFullRange = latLayout._fullRange,
+                // TODO Is this good enough?
+                cMin = Math.min(0.75 * latRange[0], 0.75 * latFullRange[0]),
+                cMax = Math.max(0.75 * latRange[1], 0.75 * latFullRange[1]);
+
+            if (c1[1] > cMax) c1[1] = cMax;
+            if (c1[1] < cMin) c1[1] = cMin;
+
+            map.projection.center([c0[0], c1[1]]);
         }
+
+        if (isClipped) handleClipped();
+        else handleNonClipped();
+
     }
 
     var zoom = d3.behavior.zoom()

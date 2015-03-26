@@ -305,64 +305,88 @@ map.setConvert = function setConvert(gd) {
     map.setRotate();
     map.setCenter();
 
-    // setScale needs a initial projection; it is called from makeProjection
+    // setScale needs a initial projection;
+    // it is called from makeProjection
     map.setScale = function setScale(projection) {
         var scale0 = projection.scale(),
+            scale,
             bounds,
-            scale;
-
-        // TODO this actually depends on the projection!
-        projLayout._fullScale = gs.w / (2 * Math.PI);
+            fullBounds;
 
         // Inspired by: http://stackoverflow.com/a/14654988/4068492
         // using the path determine the bounds of the current map and use
         // these to determine better values for the scale and translation
 
-        // TODO is this enough to handle ALL cases?
-        var dlon4 = dlon / 4;
-
         // polygon GeoJSON corresponding to lon/lat range box
         // with well-defined direction
-        var rangeBox = {
-            type: "Polygon",
-            coordinates: [
-              [ [lon0, lat0],
-                [lon0 , lat1],
-                [lon0 + dlon4, lat1],
-                [lon0 + 2*dlon4, lat1],
-                [lon0 + 3*dlon4, lat1],
-                [lon1, lat1],
-                [lon1, lat0],
-                [lon1 - dlon4, lat0],
-                [lon1 - 2*dlon4, lat0],
-                [lon1 - 3*dlon4, lat0],
-                [lon0, lat0] ]
-            ]
-        };
+        function makeRangeBox(lon0, lat0, lon1, lat1) {
+            var dlon4 = (lon1 - lon0) / 4;
 
-        if (map.DEBUG) map.rangeBox = rangeBox;
+            // TODO is this enough to handle ALL cases?
+            return {
+                type: "Polygon",
+                coordinates: [
+                  [ [lon0, lat0],
+                    [lon0 , lat1],
+                    [lon0 + dlon4, lat1],
+                    [lon0 + 2*dlon4, lat1],
+                    [lon0 + 3*dlon4, lat1],
+                    [lon1, lat1],
+                    [lon1, lat0],
+                    [lon1 - dlon4, lat0],
+                    [lon1 - 2*dlon4, lat0],
+                    [lon1 - 3*dlon4, lat0],
+                    [lon0, lat0] ]
+                ]
+            };
 
-        // bounds array [[top,left] [bottom,right]]
+            // or this, which might lead to better results
+//             return d3.geo.graticule()
+//                 .extent([[lon0, lat0], [lon1, lat1]])
+//                 .outline();
+        }
+
+        // bounds array [[top, left], [bottom, right]]
         // of the lon/lat range box
-        function getBounds(projection) {
+        function getBounds(projection, rangeBox) {
             var path = d3.geo.path().projection(projection);
             return path.bounds(rangeBox);
         }
 
+        function getScale(bounds) {
+            return Math.min(
+                scale0 * gs.w  / (bounds[1][0] - bounds[0][0]),
+                scale0 * gs.h / (bounds[1][1] - bounds[0][1])
+            );
+        }
+
+        var rangeBox = makeRangeBox(lon0, lat0, lon1, lat1);
+            // TODO should be fullRange
+            fullRangeBox = makeRangeBox(-179, -89, 179, 89);
+
+        if (map.DEBUG) map.rangeBox = rangeBox;
+
         // scale projection given how range box get deformed
         // by the projection
-        bounds = getBounds(projection);
-        scale  = Math.min(
-            scale0 * gs.w  / (bounds[1][0] - bounds[0][0]),
-            scale0 * gs.h / (bounds[1][1] - bounds[0][1])
-        );
+        bounds = getBounds(projection, rangeBox);
+        scale = getScale(bounds);
+
+        // similarly, get scale at full range
+        fullBounds = getBounds(projection, fullRangeBox);
+        projLayout._fullScale = getScale(fullBounds);
+
         projection.scale(scale);
 
-        // TODO scale is off for gnomonic / stereographic / orthographic
+        // TODO gnomonic
+        // this projection is non-finite, should it just scale with width?
+        // e.g. -> gs.w / (2 * Math.PI)
+
+        // TODO scale is off for dflt range in:
+        // stereographic, gnomonic
 
         // translate the projection so that the top-left corner
         // of the range box is at the top-left corner of the viewbox
-        bounds = getBounds(projection);
+        bounds = getBounds(projection, rangeBox);
         projection.translate([
             gs.w/2 - bounds[0][0],
             gs.h/2 - bounds[0][1]
@@ -370,8 +394,10 @@ map.setConvert = function setConvert(gd) {
 
         // clip regions out of the range box
         // (these are clipping along horizontal/vertical lines)
-        bounds = getBounds(projection);
+        bounds = getBounds(projection, rangeBox);
         projection.clipExtent(bounds);
+
+        // TODO latitude clipping is ill-defined for azimuthal projections
 
         // TODO compute effective width / height with bounds
         // and use it for container width/height
@@ -856,6 +882,7 @@ map.drawPaths = function drawPaths() {
 
     var fullLayout = gd._fullLayout,
         isClipped = fullLayout.map.projection._isClipped,
+        projType,
         gData;
 
     function translatePoints(d) {

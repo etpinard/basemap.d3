@@ -1,18 +1,38 @@
 var map = {};
 
-// TODO better handle full range for these projections
-// these depend on rotate
-map.FULLRANGE = {
-    'orthographic': [-45, 45]
-}
+// Enable debug mode:
+// - boundary around fullLayout.width / height
+// - boundary around rangeBox polygon (used to determine projection scale)
+map.DEBUG = false;
 
-map.CLIPANGLES = {
-    'orthographic': 90,
-    'azimuthalEqualArea': 180 - 1e-3,
-    'azimuthalEquidistant': 180 - 1e-3,
-    'gnomonic': 90 - 1e-3,   // TODO larger precision (for large zoom)
-    'stereographic': 180 - 1e-3  // TODO larger clip angle (for large zoom)
+// -------------------------------------------------------------------------------
+
+// full angular span in degrees
+map.SPANANGLE = {
+    lonaxis: 360,
+    lataxis: 180
 };
+
+// TODO angular span for scopes
+
+// max angular span used to clip map layers
+// (projections not listed get full angular span)
+// TODO are these relevant only for lonaxis?
+map.CLIPANGLE = {
+    orthographic: 90,
+    azimuthalEqualArea: 180,
+    azimuthalEquidistant: 180,
+    gnomonic: 80,  // TODO appears to make things work; is this correct?
+    stereographic: 180
+};
+
+// pad with respect to clip angles
+map.CLIPPAD = 1e-3;
+
+// map projection precision
+map.PRECISION = 0.1;
+
+// -------------------------------------------------------------------------------
 
 map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     if (!(astr in containerIn)) {
@@ -48,6 +68,15 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
     }
 
+    function isValidRange(layout, ax) {
+        var axLayout = layout.map[ax];
+        // TODO add isNumeric test
+        return (axLayout &&
+            'range' in axLayout) &&
+            Array.isArray(axLayout.range) &&
+            axLayout.range.length===2;
+    }
+
     coerce('width', 700);
     coerce('height', 450);
 
@@ -57,11 +86,15 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var resolution = coerceMap('resolution', '110m');
     coerceMap('_topojson', scope + '_' + resolution);
 
+    // TODO implement this!
+    // 'rotate' or 'translate'
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
-    var type = coerceMapNest('projection', 'type', 'equirectangular');
-    coerceMapNest('projection', '_isClipped', (type in map.CLIPANGLES));
-    coerceMapNest('projection', 'rotate', [0, 0]);
+    var projType = coerceMapNest('projection', 'type', 'equirectangular');
+    var isClipped = coerceMapNest('projection', '_isClipped',
+                                  (projType in map.CLIPANGLE));
+
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
     coerceMapNest('projection', 'parallels', null);
@@ -91,22 +124,48 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    var lonrange = coerceMapNest('lonaxis', 'range',
-        (type in map.FULLRANGE) ? map.FULLRANGE[type] : [-180, 180]);
+    coerceMap('showframe', true);
+    coerceMap('framelinecolor', 'black');
+    coerceMap('framelinewidth', 2);
+
+    var autorange,
+        halfspan;
+
+    // lonaxis attributes
+    autorange = coerceMapNest('lonaxis', 'autorange',
+                              !isValidRange(layout, 'lonaxis'));
+
+    halfspan = (isClipped) ?
+        map.CLIPANGLE[projType] :
+        map.SPANANGLE.lonaxis / 2;
+    coerceMapNest('lonaxis', '_halfspan', halfspan);
+    var lonRange = coerceMapNest('lonaxis', 'range',
+                                 [rotate[0] - halfspan, rotate[0] + halfspan]);
+
+    // TODO validate range given rotate
+
     coerceMapNest('lonaxis', 'showgrid', true);
-    coerceMapNest('lonaxis', 'tick0', lonrange[0]);
+    coerceMapNest('lonaxis', 'tick0', lonRange[0]);
     coerceMapNest('lonaxis', 'dtick', 30);
     coerceMapNest('lonaxis', 'gridcolor', '#777');
     coerceMapNest('lonaxis', 'gridwidth', 1);
 
-    // TODO add zeroline attributes
+    // lataxis attributes
+    autosize = coerceMapNest('lataxis', 'autorange',
+                             !isValidRange(layout, 'lataxis'));
 
-    var latrange = coerceMapNest('lataxis', 'range', [-90, 90]);
+    halfspan = map.SPANANGLE.lataxis / 2;
+    coerceMapNest('lataxis', '_halfspan', halfspan);
+    var latRange = coerceMapNest('lataxis', 'range',
+                                 [rotate[1] - halfspan, rotate[1] + halfspan]);
+
     coerceMapNest('lataxis', 'showgrid', true);
-    coerceMapNest('lataxis', 'tick0', latrange[0]);
+    coerceMapNest('lataxis', 'tick0', latRange[0]);
     coerceMapNest('lataxis', 'dtick', 10);
     coerceMapNest('lataxis', 'gridcolor', '#777');
     coerceMapNest('lataxis', 'gridwidth', 1);
+
+    // TODO add zeroline attributes
 
     fullLayout.map = mapFullLayout;
     gd._fullLayout = fullLayout;
@@ -166,6 +225,14 @@ map.supplyDefaults = function supplyDefaults(gd) {
     gd._fullData = fullData;
 };
 
+map.doAutoRange = function doAutoRange(gd) {
+
+    // TODO
+    // based on data!
+
+
+};
+
 map.setConvert = function setConvert(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
@@ -173,9 +240,7 @@ map.setConvert = function setConvert(gd) {
         projLayout = mapLayout.projection,
         isClipped = projLayout._isClipped,
         lonLayout = mapLayout.lonaxis,
-        latLayout = mapLayout.lataxis,
-        lonRange = lonLayout.range,
-        latRange = latLayout.range;
+        latLayout = mapLayout.lataxis;
 
     var gs = fullLayout._gs = {};
 
@@ -187,22 +252,31 @@ map.setConvert = function setConvert(gd) {
     gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
     gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
-    var lonDiff = lonRange[1] - lonRange[0],
-        latDiff = latRange[1] - latRange[0];
-
-    // TOOD use this instead of gs.w / gs.h
+    // TODO use this instead of gs.w / gs.h
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
-    // center of the projection is given by the lon/lat ranges
-    map.setCenter = function setCenter() {
-        projLayout._center = [
-            lonRange[0] + lonDiff / 2,
-            latRange[0] + latDiff / 2
-        ];
-    };
+    // TODO handle scopes!
+    lonLayout._fullRange = [-180, -180 + map.SPANANGLE.lonaxis];
+    latLayout._fullRange = [-90, -90 + map.SPANANGLE.lataxis];
+
+    // TODO consider frame width into figure w/h
+
+    // add padding at antemeridian to avoid aliasing
+    // TODO this probably too crude in general
+    var lon0 = lonLayout.range[0] + map.CLIPPAD,
+        lon1 = lonLayout.range[1] - map.CLIPPAD,
+        lat0 = latLayout.range[0] + map.CLIPPAD,
+        lat1 = latLayout.range[1] - map.CLIPPAD;
+
+    var lonfull0 = lonLayout._fullRange[0] + map.CLIPPAD,
+        lonfull1 = lonLayout._fullRange[1] - map.CLIPPAD,
+        latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
+        latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
 
     // initial translation
+    // TODO into merge setScale
+    // with http://bl.ocks.org/phil-pedruco/9999984 ?
     map.setTranslate = function setTranslate() {
         projLayout._translate = [
             gs.l + gs.w / 2,
@@ -210,7 +284,7 @@ map.setConvert = function setConvert(gd) {
         ];
     };
 
-    // Is this more intuitive
+    // is this more intuitive?
     map.setRotate = function setRotate() {
         var rotate = projLayout.rotate;
         projLayout._rotate = [
@@ -219,56 +293,117 @@ map.setConvert = function setConvert(gd) {
         ];
     };
 
-    // these don't need a projection; call them here
-    map.setCenter();
-    map.setTranslate();  // TODO into merge setScale?
-    map.setRotate();
+    // center of the projection is given by
+    // the lon/lat ranges and the rotate angle
+    map.setCenter = function setCenter() {
+        var dlon = lon1 - lon0,
+            dlat = lat1 - lat0,
+            c0 = [
+                lon0 + dlon / 2,
+                lat0 + dlat / 2
+            ],
+            r = projLayout._rotate;
+        projLayout._center = [
+            c0[0] + r[0],
+            c0[1] + r[1]
+        ];
+    };
 
-    // setScale needs a initial projection; it is called from makeProjection
+    // these don't need a projection; call them here
+    map.setTranslate();
+    map.setRotate();
+    map.setCenter();
+
+    // setScale needs a initial projection;
+    // it is called from makeProjection
     map.setScale = function setScale(projection) {
         var scale0 = projection.scale(),
+            scale,
             bounds,
-            hscale,
-            vscale,
-            scale;
-
-        // TODO this actually depends on the projection!
-        projLayout._fullScale = gs.w / (2 * Math.PI);
+            fullBounds;
 
         // Inspired by: http://stackoverflow.com/a/14654988/4068492
         // using the path determine the bounds of the current map and use
         // these to determine better values for the scale and translation
 
         // polygon GeoJSON corresponding to lon/lat range box
-        var rangeBox = {
-            type: "Polygon",
-            coordinates: [
-              [ [lonRange[0], latRange[0]],
-                [lonRange[0], latRange[1]],
-                [lonRange[1], latRange[1]],
-                [lonRange[1], latRange[0]],
-                [lonRange[0], latRange[0]] ]
-            ]
-        };
+        // with well-defined direction
+        function makeRangeBox(lon0, lat0, lon1, lat1) {
+            var dlon4 = (lon1 - lon0) / 4,
+                rangeBox;
 
-        // bounds array [[top,left] [bottom,right]]
+            // TODO is this enough to handle ALL cases?
+            // -- this makes scaling less precise as
+            //    great circle overshoot the boundary
+            rangeBox = {
+                type: "Polygon",
+                coordinates: [
+                  [ [lon0, lat0],
+                    [lon0 , lat1],
+                    [lon0 + dlon4, lat1],
+                    [lon0 + 2*dlon4, lat1],
+                    [lon0 + 3*dlon4, lat1],
+                    [lon1, lat1],
+                    [lon1, lat0],
+                    [lon1 - dlon4, lat0],
+                    [lon1 - 2*dlon4, lat0],
+                    [lon1 - 3*dlon4, lat0],
+                    [lon0, lat0] ]
+                ]
+            };
+
+            // or this, which might lead to better results
+            // -- this messed up orthographic with rotate[1] = big
+//              rangeBox = d3.geo.graticule()
+//                 .extent([[lon0, lat0], [lon1, lat1]])
+//                 .outline();
+
+            return rangeBox;
+        }
+
+        // bounds array [[top, left], [bottom, right]]
         // of the lon/lat range box
-        function getBounds(projection) {
+        function getBounds(projection, rangeBox) {
             var path = d3.geo.path().projection(projection);
             return path.bounds(rangeBox);
         }
 
+        function getScale(bounds) {
+            return Math.min(
+                scale0 * gs.w  / (bounds[1][0] - bounds[0][0]),
+                scale0 * gs.h / (bounds[1][1] - bounds[0][1])
+            );
+        }
+
+        var rangeBox = makeRangeBox(lon0, lat0, lon1, lat1);
+            fullRangeBox = makeRangeBox(lonfull0, latfull0, lonfull1, latfull1);
+
+        if (map.DEBUG) {
+            map.rangeBox = rangeBox;
+            map.fullRangeBox = fullRangeBox;
+        }
+
         // scale projection given how range box get deformed
         // by the projection
-        bounds = getBounds(projection);
-        hscale  = scale0 * gs.w  / (bounds[1][0] - bounds[0][0]);
-        vscale  = scale0 * gs.h / (bounds[1][1] - bounds[0][1]);
-        scale = (hscale < vscale) ? hscale : vscale;
+        bounds = getBounds(projection, rangeBox);
+        scale = getScale(bounds);
+
+        // similarly, get scale at full range
+        fullBounds = getBounds(projection, fullRangeBox);
+        projLayout._fullScale = getScale(fullBounds);
+
         projection.scale(scale);
+
+        // TODO gnomonic
+        // this projection is non-finite, should it just scale with width?
+        // e.g. -> gs.w / (2 * Math.PI)
+
+        // TODO scale is off for dflt range in:
+        // stereographic, gnomonic
 
         // translate the projection so that the top-left corner
         // of the range box is at the top-left corner of the viewbox
-        bounds = getBounds(projection);
+        bounds = getBounds(projection, rangeBox);
         projection.translate([
             gs.w/2 - bounds[0][0],
             gs.h/2 - bounds[0][1]
@@ -276,11 +411,15 @@ map.setConvert = function setConvert(gd) {
 
         // clip regions out of the range box
         // (these are clipping along horizontal/vertical lines)
-        bounds = getBounds(projection);
+        bounds = getBounds(projection, rangeBox);
         projection.clipExtent(bounds);
 
-        // TODO compute effective width / height with bounds
-        // and use it for container width/height
+        // TODO latitude clipping is ill-defined for azimuthal projections
+
+        // Effective width / height of container
+        // TODO handle margin and domains?
+        gs.wEff = Math.round(bounds[1][0]);
+        gs.hEff = Math.round(bounds[1][1]);
 
         // TODO add clipping along meridian/parallels option
 
@@ -296,13 +435,17 @@ map.makeProjection = function makeProjection(gd) {
 
     projection = d3.geo[projType]()
         .translate(projLayout._translate)
-        .center(projLayout._center)
         .rotate(projLayout._rotate)
-        .precision(0.1);
+        .center(projLayout._center)
+        .precision(map.PRECISION);
 
-    if (projType in map.CLIPANGLES) projection.clipAngle(map.CLIPANGLES[projType]);
+    if (projType in map.CLIPANGLE) {
+        projection.clipAngle(map.CLIPANGLE[projType] - map.CLIPPAD);
+    }
 
-    if (projLayout.parallels) projection.parallels(projLayout.parallels);
+    if (projLayout.parallels) {
+        projection.parallels(projLayout.parallels);
+    }
 
     // ... the big one!
     if (map._setScale===undefined) map.setScale(projection);
@@ -447,12 +590,14 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
-        projLayout = fullLayout.map.projection,
+        gs = fullLayout._gs,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection,
         isClipped = projLayout._isClipped;
 
     var svg = d3.select("body").append("svg")
-        .attr("width", fullLayout._gs.w)
-        .attr("height", fullLayout._gs.h);
+        .attr("width", map.DEBUG ? gs.w : gs.wEff)
+        .attr("height", map.DEBUG ? gs.h : gs.hEff);
 
     svg.append("g")
         .classed("basemap", true);
@@ -460,82 +605,122 @@ map.makeSVG = function makeSVG(gd) {
     svg.append("g")
         .classed("graticule", true);
 
+    // TODO should 'frame' be drawn over 'graticule' ?
+
     svg.append("g")
         .classed("data", true);
 
-    // frame around map
-    // TODO incorporate into layout attributes
-    svg.append("g")
-        .classed("sphere", true);
-    svg.select("g.sphere")
-        .append("path")
-        .datum({type: "Sphere"})
-        .attr("class", "sphere");
+    // [DEBUG] rectangle around svg container
+    if (map.DEBUG) {
+        svg.append("rect")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", gs.w)
+            .attr("height", gs.h)
+            .attr("fill", "none")
+            .attr("stroke", "red")
+            .attr("stroke-width", 6);
 
-    // rectangle around svg container (for testing)
-    svg.append("rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", fullLayout._gs.w)
-        .attr("height", fullLayout._gs.h)
-        .attr("fill", "none")
-        .attr("stroke", "black")
-        .attr("stroke-width", 4);
+        svg.append("g")
+            .datum(map.rangeBox)
+          .append("path")
+            .attr("d", d3.geo.path().projection(map.projection))
+            .attr("fill", "none")
+            .attr("stroke", "green")
+            .attr("stroke-width", 6);
+    }
 
     var m0,  // variables for dragging
         o0,
-        t0;
+        t0,
+        c0;
 
-    var drag = d3.behavior.drag()
-        .on("dragstart", function() {
-            var p = map.projection.rotate(),
-                t = map.projection.translate();
-            m0 = [
+    function handleZoomStart() {
+        var p = map.projection.rotate(),
+            t = map.projection.translate(),
+            c = map.projection.center();
+        m0 = [
+            d3.event.sourceEvent.pageX,
+            d3.event.sourceEvent.pageY
+        ];
+        o0 = [-p[0], -p[1]];
+        t0 = [t[0], t[1]];
+        c0 = [c[0], c[1]];
+    }
+
+    function handleZoom() {
+        if (!m0) return;
+
+        var m1 = [
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
+            ],
+            dmx = m0[0] - m1[0],
+            dmy = m1[1] - m0[1],
+            o1 = [
+                o0[0] + dmx / 4,
+                o0[1] + dmy / 4
+            ],
+            t1 = [  // TODO is this obsolete?
+                t0[0] + dmx,
+                t0[1] + dmy
+            ],
+            c1 = [
+                c0[0] + dmx / 4,
+                c0[1] + dmy / 4
             ];
-            o0 = [-p[0], -p[1]];
-            t0 = [t[0], t[1]];
-        })
-        .on("drag", function() {
-            if (m0) {
-                var m1 = [
-                        d3.event.sourceEvent.pageX,
-                        d3.event.sourceEvent.pageY
-                    ],
-                    o1 = [
-                        o0[0] + (m0[0] - m1[0]) / 4,
-                        o0[1] + (m1[1] - m0[1]) / 4
-                    ],
-                    t1 = [
-                        t0[0] + (m0[0] - m1[0]),
-                        t0[1] + (m1[1] - m0[1])
-                    ];
 
-                if (isClipped) {
-                    // clipped  projections are panned by rotation
-                    map.projection.rotate([-o1[0], -o1[1]]);
-                } else {
-                    // non-clipped projections are panned
-                    // by rotation along lon
-                    map.projection.rotate([-o1[0], -o0[1]]);
-                    // and by translation along lat
-                    // if scale is greater than fullScale
-                    // TODO more conditions?
-                    if (map.projection.scale() > projLayout._fullScale) {
-                        map.projection.translate([t0[0], t1[1]]);
-                    }
-                }
-                map.drawPaths();
-            }
-        });
+        function handleClipped() {
+            // clipped projections are panned by rotation
+            map.projection.rotate([-o1[0], -o1[1]]);
+        }
+
+        function handleNonClipped() {
+            // non-clipped projections are panned
+            // by rotation along lon
+            // and by translation along lat
+
+            map.projection.rotate([-o1[0], -o0[1]]);
+
+            // TODO Do all non-clipped projection have an inverse?
+            // TODO Why does this give different results during pan?
+//             var halfspan = map.projection.invert([0, map.bounds[1] / 2])[1]
+
+            var latLayout = mapLayout.lataxis,
+                latRange = latLayout.range,
+                latFullRange = latLayout._fullRange,
+                // TODO Is this good enough?
+                cMin = Math.min(0.75 * latRange[0], 0.75 * latFullRange[0]),
+                cMax = Math.max(0.75 * latRange[1], 0.75 * latFullRange[1]);
+
+            if (c1[1] > cMax) c1[1] = cMax;
+            if (c1[1] < cMin) c1[1] = cMin;
+
+            map.projection.center([c0[0], c1[1]]);
+        }
+
+        if (isClipped) handleClipped();
+        else handleNonClipped();
+
+    }
 
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
-        .scaleExtent([projLayout._fullScale, 10 * projLayout._fullScale])
+        .scaleExtent([
+            // TODO something smarter!!!
+            projLayout._fullScale,
+            10 * projLayout._fullScale
+        ])
+        .on("zoomstart", function() {
+            handleZoomStart();
+        })
         .on("zoom", function() {
             map.projection.scale(d3.event.scale);
+            handleZoom();
             map.drawPaths();
+        })
+        .on("zoomend", function() {
+            // map.drawPaths();  // TODO do this on the highest resolution!
         });
 
     var dblclick = function() {
@@ -545,9 +730,8 @@ map.makeSVG = function makeSVG(gd) {
     };
 
     svg
-        .call(drag)
         .call(zoom)
-        .on("dblclick.zoom", null)
+        .on("dblclick.zoom", null)  // N.B. disable dblclick zoom default
         .on("dblclick", dblclick);
 
    return svg;
@@ -557,6 +741,7 @@ map.init = function init(gd) {
     var topo = map.topo,
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
         gBasemap,
         gGraticule,
         gData,
@@ -566,18 +751,25 @@ map.init = function init(gd) {
         i;
 
     map.fillLayers = ['ocean', 'land', 'lakes'];
-    map.lineLayers = ['subunits', 'countries', 'coastlines', 'rivers'];
+    map.lineLayers = ['subunits', 'countries',
+                      'coastlines', 'rivers', 'frame'];
 
     map.baselayers = map.fillLayers.concat(map.lineLayers);
     map.baselayersOverChoropleth = ['rivers', 'lakes'];
 
+    // make SVG layers and attach events
     map.svg = map.makeSVG(gd);
 
     function plotBaseLayer(s, layer) {
+        var datum;
+
         if (fullLayout.map['show' + layer]===true) {
-             s.append("g")
-                .datum(topojson.feature(topo,
-                                        topo.objects[layer]))
+            datum = (layer==='frame') ?
+                {type: 'Sphere'} :
+                topojson.feature(topo, topo.objects[layer]);
+
+            s.append("g")
+                .datum(datum)
                 .attr("class", layer)
               .append("path")
                 .attr("class", layer);
@@ -590,41 +782,41 @@ map.init = function init(gd) {
         plotBaseLayer(gBasemap, map.baselayers[i]);
     }
 
-    // TODO graticule should go around the globe
-    function plotGraticule(s, ax) {
-        var otherAx = {
-                lonaxis: 'lataxis',
-                lataxis: 'lonaxis'
-            }[ax],
-            axLayout = fullLayout.map[ax],
-            otherAxLayout = fullLayout.map[otherAx],
-            lonExtent = {
-                lonaxis: [axLayout.tick0, axLayout.range[1]],
-                lataxis: otherAxLayout.range
-            }[ax],
-            latExtent = {
-                lonaxis: otherAxLayout.range,
-                lataxis: [axLayout.tick0, axLayout.range[1]]
-            }[ax],
-            step = {
-                lonaxis: [axLayout.dtick],
-                lataxis: [0, axLayout.dtick]
-            }[ax],
-            graticule =  d3.geo.graticule()
+    function plotGraticules(s) {
+        var axes = ['lonaxis', 'lataxis'],
+            lonLayout = mapLayout.lonaxis,
+            latLayout = mapLayout.lataxis,
+            graticule = {};
+
+        function makeGraticule(step) {
+            return d3.geo.graticule()
                 .extent([
-                    [lonExtent[0], latExtent[0]],
-                    [lonExtent[1], latExtent[1]]
+                    [lonLayout._fullRange[0], latLayout._fullRange[0]],
+                    [lonLayout._fullRange[1], latLayout._fullRange[1]]
                 ])
                 .step(step);
-        s.append("path")
-         .attr("class", ax + 'graticule')
-         .datum(graticule);
+        }
+
+        function plotGraticule(axis) {
+            s.append("path")
+             .attr("class", axis + 'graticule')
+             .datum(graticule[axis]);
+        }
+
+        if (lonLayout.showgrid) {
+            graticule.lonaxis = makeGraticule([lonLayout.dtick]);
+            plotGraticule('lonaxis');
+        }
+
+        if (latLayout.showgrid) {
+            graticule.lataxis = makeGraticule([0, latLayout.dtick]);
+            plotGraticule('lataxis');
+        }
     }
 
     // graticule layers - should these be over choropleth?
     gGraticule = map.svg.select("g.graticule");
-    if (fullLayout.map.lonaxis.showgrid) plotGraticule(gGraticule, 'lonaxis');
-    if (fullLayout.map.lataxis.showgrid) plotGraticule(gGraticule, 'lataxis');
+    plotGraticules(gGraticule);
 
     // bind calcdata to SVG
     gData = map.svg.select("g.data")
@@ -702,7 +894,7 @@ map.init = function init(gd) {
             }
         });
 
-    map.drawPaths();  // draw the paths
+    map.drawPaths();  // draw the paths for the first time
 };
 
 map.makeLineGeoJSON = function makeLineGeoJSON(d) {
@@ -720,31 +912,33 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
     };
 };
 
+// [hot code path] (re)draw all paths which depend on map.projection
 map.drawPaths = function drawPaths() {
     var projection = map.projection,
         path = d3.geo.path().projection(projection);
 
     var fullLayout = gd._fullLayout,
-        isClipped = fullLayout.map.projection._isClipped;
+        isClipped = fullLayout.map.projection._isClipped,
+        projType,
+        gData;
 
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
     }
 
-    d3.select("path.sphere")
-        .attr("d", path);
-
     if (isClipped) {
-        d3.select("path.sphere")
-            .attr("d", path);
-        // hide paths over the edge
+        // hide paths over edges
+        projType = fullLayout.map.projection.type;
         d3.selectAll("path.point")
             .attr("opacity", function(d) {
                 var p = projection.rotate(),
-                    angle = d3.geo.distance([d.lon, d.lat],
-                                            [-p[0], -p[1]]);
-                return (angle > Math.PI / 2) ? "0" : "1.0";
+                    angle = d3.geo.distance(
+                        [d.lon, d.lat],
+                        [-p[0], -p[1]]
+                    ),
+                    maxAngle = map.CLIPANGLE[projType] * Math.PI / 180;
+                return (angle > maxAngle) ? "0" : "1.0";
             });
     }
 
@@ -753,7 +947,7 @@ map.drawPaths = function drawPaths() {
     d3.selectAll("g.graticule path")
         .attr("d", path);
 
-    var gData = map.svg.select("g.data");
+    gData = map.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
         .attr("d", path);
     gData.selectAll("g.basemapoverchoropleth path")
@@ -778,6 +972,7 @@ map.pointStyle = function pointStyle(s, trace) {
                 var rs = d3.round(r,2);
                 return 'M'+rs+','+rs+'H-'+rs+'V-'+rs+'H'+rs+'Z';
             }
+            // ... more to come ...
         };
 
     s.each(function(d) {
@@ -824,7 +1019,9 @@ map.style = function style(gd) {
 
     map.lineLayers.forEach(function(layer){
         var s = d3.select("path." + layer);
-        if (layer!=='coastlines') layer += 'line';  // coastline is an exception
+
+        // coastline is an exception
+        if (layer!=='coastlines') layer += 'line';
 
         s.attr("fill", "none")
          .attr("stroke", mapLayout[layer + 'color'])
@@ -837,9 +1034,10 @@ map.style = function style(gd) {
         s.attr("fill", "none")
          .attr("stroke", mapLayout[ax].gridcolor)
          .attr("stroke-width", mapLayout[ax].gridwidth)
-         .attr("stroke-opacity", 0.5);
+         .attr("stroke-opacity", 0.5);  // TODO generalize
     });
 
+    // TODO generalize
     var colorscale = d3.scale.log()
         .range(["hsl(62,100%,90%)", "hsl(228,30%,20%)"])
         .interpolate(d3.interpolateHcl);
@@ -849,7 +1047,7 @@ map.style = function style(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            // TODO generalize
+            // TODO generalize (bis)
             colorscale.domain([d3.quantile(trace.z, 0.01),
                                d3.quantile(trace.z, 0.99)]);
 
@@ -878,6 +1076,7 @@ map.plot = function plot(gd) {
 
     map.supplyLayoutDefaults(gd);
     map.supplyDefaults(gd);
+    map.doAutoRange(gd);
 
     map.setConvert(gd);
     map.makeProjection(gd);

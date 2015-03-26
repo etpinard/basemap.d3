@@ -3,6 +3,7 @@
 <link rel="stylesheet" type="text/css" href="../src/basemap.css" />
 <body>
 <script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/d3.geo.projection.v0.min.js" charset="utf-8"></script>
 <script src="http://d3js.org/topojson.v1.min.js"></script>
 <script src="../src/map.js"></script>
 <script>
@@ -27,8 +28,8 @@ gd.data = [
     {
         type: "map-scatter",
         mode: "markers",
-        lon: [-75, 100, 43],
-        lat: [45, 0, -12],
+        lon: [0, 0, 45, 90],
+        lat: [0, 90, 45, 0],
         marker: {
             color: 'rgb(255,0,0)',
             size: 20
@@ -37,13 +38,12 @@ gd.data = [
 ];
 
 gd.layout = {
+    width: 1000,
+    height: 1000,
     map: {
         projection: {
-            type: 'orthographic',
-            rotate: [-75, 45]
-//             rotate: [100, 0]
-//             rotate: [43, -12]
-            // add a zoom attr?
+            type: 'gnomonic',
+            rotate: [-50, 90]
         },
         //
         showcoastlines: true,
@@ -64,9 +64,16 @@ gd.layout = {
         subunitslinecolor: "#aaa",
         subunitslinewidth: 1,
         //
-        showframe: true,
-        framelinecolor: 'black',
-        framelinewidth: 4
+        lonaxis: {
+            showgrid: false,
+            gridwidth: 2,
+            gridcolor: "black"
+        },
+        lataxis: {
+            range: [60, 120],
+            gridwidth: 2,
+            gridcolor: "black"
+        }
     }
 };
 

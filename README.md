@@ -13,17 +13,14 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - Scatter points/text by locations (e.g. ISO-3)
 - Periodic panning and zoom
 - Customizable lon/lat axis ranges, graticule width, color and spacing
+- Customizable map frame
 
 ### TODO list
 
 - Improve maps set scale (almost there ...)
-
+- Improve zoom
 - Improve scopes: figure out what land / ocean / coastlines layers should be
-
-- Add zeroline and showline (with
-  [`graticule.outline`](https://github.com/mbostock/d3/wiki/Geo-Paths#graticule_outline))
-lon/lat) attributes.
-
+- Add zeroline (lon/lat) attributes.
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
   provinces)

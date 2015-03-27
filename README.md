@@ -17,9 +17,9 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 ### TODO list
 
-- Improve maps set scale (almost there ...)
-- Improve zoom
+- Improve maps set scale + controls (almost there ...)
 - Improve scopes: figure out what land / ocean / coastlines layers should be
+
 - Add zeroline (lon/lat) attributes.
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
@@ -28,26 +28,6 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - ...
 
 ### Running it locally
-
-- Install gdal (info:
-  [ubuntu](http://www.sarasafavi.com/installing-gdalogr-on-ubuntu.html) ;
-  [mac](https://trac.osgeo.org/gdal/wiki/BuildingOnMac))
-
-- Install node.js dependencies
-```bash
-npm install
-```
-
-
-- Get [Natural Earth](http://www.naturalearthdata.com/downloads/) data
-```bash
-make wget
-```
-
-- Convert shapefiles into topojson
-```bash
-make convert
-```
 
 - Install http-server
 ```bash
@@ -61,6 +41,29 @@ npm install http-server -g
 ```
 
 - Open up http://localhost:8000/
+
+### Convert Natural Earth shapefiles to topojson
+
+- Install gdal (info:
+  [ubuntu](http://www.sarasafavi.com/installing-gdalogr-on-ubuntu.html) ;
+  [mac](https://trac.osgeo.org/gdal/wiki/BuildingOnMac))
+
+- Install node.js dependencies
+```bash
+npm install
+```
+
+- Edit `./bin/config.json` (more info to come)
+
+- Get [Natural Earth](http://www.naturalearthdata.com/downloads/) data
+```bash
+make wget
+```
+
+- Convert shapefiles into topojson
+```bash
+make convert
+```
 
 ### API
 

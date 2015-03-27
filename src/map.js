@@ -718,9 +718,8 @@ map.makeSVG = function makeSVG(gd) {
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
         .scaleExtent([
-            // TODO something smarter!!!
-            projLayout._fullScale,
-            10 * projLayout._fullScale
+            0.5 * projLayout._fullScale,
+            10 * projLayout._fullScale  // TODO is this good enough?
         ])
         .on("zoomstart", function() {
             handleZoomStart();

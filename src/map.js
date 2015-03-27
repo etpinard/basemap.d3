@@ -5,6 +5,9 @@ var map = {};
 // - boundary around rangeBox polygon (used to determine projection scale)
 map.DEBUG = false;
 
+// Print gd.data and gd.layout to DOM
+map.PRINT = true;
+
 // -------------------------------------------------------------------------------
 
 // full angular span in degrees
@@ -595,7 +598,8 @@ map.makeSVG = function makeSVG(gd) {
         projLayout = mapLayout.projection,
         isClipped = projLayout._isClipped;
 
-    var svg = d3.select("body").append("svg")
+    var svg = d3.select(gd.div).select('div.plot-div')
+      .append("svg")
         .attr("width", map.DEBUG ? gs.w : gs.wEff)
         .attr("height", map.DEBUG ? gs.h : gs.hEff);
 
@@ -1074,6 +1078,8 @@ map.style = function style(gd) {
 
 map.plot = function plot(gd) {
 
+    gd.div = Print.init();
+
     map.supplyLayoutDefaults(gd);
     map.supplyDefaults(gd);
     map.doAutoRange(gd);
@@ -1090,6 +1096,9 @@ map.plot = function plot(gd) {
 
         map.init(gd);
         map.style(gd);
+
+        if (map.PRINT) Print.printToDOM(gd);
+        else Print.removeCodeDiv(gd);
 
     });
 

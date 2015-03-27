@@ -10,26 +10,25 @@ map.PRINT = true;
 
 // -------------------------------------------------------------------------------
 
-// full angular span in degrees
-map.SPANANGLE = {
-    lonaxis: 360,
-    lataxis: 180
+// max longitudinal angular span
+map.LONSPAN = {};
+map.LONSPAN.world = {
+    '*': 360,
+    orthographic: 180,
+    azimuthalEqualArea: 360,
+    azimuthalEquidistant: 360,
+    gnomonic: 160,  // TODO appears to make things work; is this correct?
+    stereographic: 360
 };
 
-// TODO angular span for scopes
-
-// max angular span used to clip map layers
-// (projections not listed get full angular span)
-// TODO are these relevant only for lonaxis?
-map.CLIPANGLE = {
-    orthographic: 90,
-    azimuthalEqualArea: 180,
-    azimuthalEquidistant: 180,
-    gnomonic: 80,  // TODO appears to make things work; is this correct?
-    stereographic: 180
+// max latitudinal angular span
+map.LATSPAN = {};
+map.LATSPAN.world = {
+    '*': 180,
+    conicConformal: 150  // TODO appears to make things work; is this correct?
 };
 
-// pad with respect to clip angles
+// angular pad to avoid rounding error around clip angles
 map.CLIPPAD = 1e-3;
 
 // map projection precision
@@ -87,16 +86,27 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     var scope = coerceMap('scope', 'world');
     var resolution = coerceMap('resolution', '110m');
+    var projType = coerceMapNest('projection', 'type', 'equirectangular');
+
     coerceMap('_topojson', scope + '_' + resolution);
 
-    // TODO implement this!
-    // 'rotate' or 'translate'
-    coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
+    var lonSpan = (projType in map.LONSPAN.world) ?
+            map.LONSPAN.world[projType] :
+            map.LONSPAN.world['*'];
 
-    var projType = coerceMapNest('projection', 'type', 'equirectangular');
+    var latSpan = (projType in map.LATSPAN.world) ?
+            map.LATSPAN.world[projType] :
+            map.LATSPAN.world['*'];
+
+    // TODO expose to users
     var isClipped = coerceMapNest('projection', '_isClipped',
-                                  (projType in map.CLIPANGLE));
+        (projType in map.LONSPAN.world));
 
+    if (isClipped) coerceMapNest('projection', '_clipAngle',
+         map.LONSPAN.world[projType] / 2);
+
+    // TODO implement 'rotate' or 'translate'
+    coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
@@ -132,20 +142,20 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('framelinewidth', 2);
 
     var autorange,
-        halfspan;
+        halfSpan,
+        fullRange;
 
     // lonaxis attributes
     autorange = coerceMapNest('lonaxis', 'autorange',
-                              !isValidRange(layout, 'lonaxis'));
+        !isValidRange(layout, 'lonaxis'));
 
-    halfspan = (isClipped) ?
-        map.CLIPANGLE[projType] :
-        map.SPANANGLE.lonaxis / 2;
-    coerceMapNest('lonaxis', '_halfspan', halfspan);
-    var lonRange = coerceMapNest('lonaxis', 'range',
-                                 [rotate[0] - halfspan, rotate[0] + halfspan]);
+    halfSpan = lonSpan / 2;
+    fullRange = coerceMapNest('lonaxis', '_fullRange',
+        [rotate[0] - halfSpan, rotate[0] + halfSpan]);
 
-    // TODO validate range given rotate
+    var lonRange = coerceMapNest('lonaxis', 'range', fullRange);
+
+    // TODO validate rotate given range
 
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonRange[0]);
@@ -155,12 +165,13 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // lataxis attributes
     autosize = coerceMapNest('lataxis', 'autorange',
-                             !isValidRange(layout, 'lataxis'));
+        !isValidRange(layout, 'lataxis'));
 
-    halfspan = map.SPANANGLE.lataxis / 2;
-    coerceMapNest('lataxis', '_halfspan', halfspan);
-    var latRange = coerceMapNest('lataxis', 'range',
-                                 [rotate[1] - halfspan, rotate[1] + halfspan]);
+    halfSpan = latSpan / 2;
+    fullRange = coerceMapNest('lataxis', '_fullRange',
+        [rotate[1] - halfSpan, rotate[1] + halfSpan]);
+
+    var latRange = coerceMapNest('lataxis', 'range', fullRange);
 
     coerceMapNest('lataxis', 'showgrid', true);
     coerceMapNest('lataxis', 'tick0', latRange[0]);
@@ -258,10 +269,6 @@ map.setConvert = function setConvert(gd) {
     // TODO use this instead of gs.w / gs.h
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
-
-    // TODO handle scopes!
-    lonLayout._fullRange = [-180, -180 + map.SPANANGLE.lonaxis];
-    latLayout._fullRange = [-90, -90 + map.SPANANGLE.lataxis];
 
     // TODO consider frame width into figure w/h
 
@@ -432,7 +439,8 @@ map.setConvert = function setConvert(gd) {
 
 map.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
-        projLayout = fullLayout.map.projection,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection,
         projType = projLayout.type,
         projection;
 
@@ -442,16 +450,15 @@ map.makeProjection = function makeProjection(gd) {
         .center(projLayout._center)
         .precision(map.PRECISION);
 
-    if (projType in map.CLIPANGLE) {
-        projection.clipAngle(map.CLIPANGLE[projType] - map.CLIPPAD);
+    if (projLayout._isClipped) {
+        projection.clipAngle(projLayout._clipAngle - map.CLIPPAD);
     }
 
     if (projLayout.parallels) {
         projection.parallels(projLayout.parallels);
     }
 
-    // ... the big one!
-    if (map._setScale===undefined) map.setScale(projection);
+    map.setScale(projection);
 
     map.projection = projection;
 };
@@ -793,10 +800,11 @@ map.init = function init(gd) {
             graticule = {};
 
         function makeGraticule(step) {
+            // TODO something smarter for scopes
             return d3.geo.graticule()
                 .extent([
-                    [lonLayout._fullRange[0], latLayout._fullRange[0]],
-                    [lonLayout._fullRange[1], latLayout._fullRange[1]]
+                    [-180, -90],
+                    [180, 90]
                 ])
                 .step(step);
         }
@@ -922,8 +930,9 @@ map.drawPaths = function drawPaths() {
         path = d3.geo.path().projection(projection);
 
     var fullLayout = gd._fullLayout,
-        isClipped = fullLayout.map.projection._isClipped,
-        projType,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection,
+        isClipped = projLayout._isClipped,
         gData;
 
     function translatePoints(d) {
@@ -933,7 +942,6 @@ map.drawPaths = function drawPaths() {
 
     if (isClipped) {
         // hide paths over edges
-        projType = fullLayout.map.projection.type;
         d3.selectAll("path.point")
             .attr("opacity", function(d) {
                 var p = projection.rotate(),
@@ -941,7 +949,7 @@ map.drawPaths = function drawPaths() {
                         [d.lon, d.lat],
                         [-p[0], -p[1]]
                     ),
-                    maxAngle = map.CLIPANGLE[projType] * Math.PI / 180;
+                    maxAngle = projLayout._clipAngle * Math.PI / 180;
                 return (angle > maxAngle) ? "0" : "1.0";
             });
     }

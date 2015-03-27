@@ -107,7 +107,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // TODO implement 'rotate' or 'translate'
     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
     if (projType.indexOf('conic')!==-1) {
@@ -143,6 +142,10 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('showframe', true);
     coerceMap('framelinecolor', 'black');
     coerceMap('framelinewidth', 2);
+
+    coerceMapNest('projection', 'scale', 1);
+
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     var autorange,
         halfSpan,
@@ -246,7 +249,6 @@ map.doAutoRange = function doAutoRange(gd) {
 
     // TODO
     // based on data!
-
 
 };
 
@@ -426,11 +428,13 @@ map.setConvert = function setConvert(gd) {
         bounds = getBounds(projection, rangeBox);
         projection.clipExtent(bounds);
 
-
         // Effective width / height of container
         // TODO handle margin and domains?
         gs.wEff = Math.round(bounds[1][0]);
         gs.hEff = Math.round(bounds[1][1]);
+
+        // adjust scale one more time with the 'scale' attribute
+        projection.scale(projLayout.scale * scale);
 
         // TODO add clipping along meridian/parallels option
         //      doable along meridian using projection.clipAngle!!!

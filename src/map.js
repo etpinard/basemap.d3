@@ -270,10 +270,10 @@ map.setConvert = function setConvert(gd) {
     gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
     // TODO use this instead of gs.w / gs.h
+    // TODO consider frame width into figure w/h
+
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
-
-    // TODO consider frame width into figure w/h
 
     // add padding at antemeridian to avoid aliasing
     // TODO this probably too crude in general
@@ -287,9 +287,7 @@ map.setConvert = function setConvert(gd) {
         latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
         latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
 
-    // initial translation
-    // TODO into merge setScale
-    // with http://bl.ocks.org/phil-pedruco/9999984 ?
+    // initial translation (makes the math easier)
     map.setTranslate = function setTranslate() {
         projLayout._translate = [
             gs.l + gs.w / 2,
@@ -347,7 +345,8 @@ map.setConvert = function setConvert(gd) {
 
             // TODO is this enough to handle ALL cases?
             // -- this makes scaling less precise as
-            //    great circle overshoot the boundary
+            //    great circles can overshoot the boundary
+            //    (that's not a big deal I think)
             rangeBox = {
                 type: "Polygon",
                 coordinates: [
@@ -427,7 +426,6 @@ map.setConvert = function setConvert(gd) {
         bounds = getBounds(projection, rangeBox);
         projection.clipExtent(bounds);
 
-        // TODO latitude clipping is ill-defined for azimuthal projections
 
         // Effective width / height of container
         // TODO handle margin and domains?
@@ -435,6 +433,7 @@ map.setConvert = function setConvert(gd) {
         gs.hEff = Math.round(bounds[1][1]);
 
         // TODO add clipping along meridian/parallels option
+        //      doable along meridian using projection.clipAngle!!!
 
     };
 
@@ -646,24 +645,23 @@ map.makeSVG = function makeSVG(gd) {
 
     var m0,  // variables for dragging
         o0,
-        t0,
         c0;
 
     function handleZoomStart() {
         var p = map.projection.rotate(),
-            t = map.projection.translate(),
             c = map.projection.center();
         m0 = [
             d3.event.sourceEvent.pageX,
             d3.event.sourceEvent.pageY
         ];
         o0 = [-p[0], -p[1]];
-        t0 = [t[0], t[1]];
         c0 = [c[0], c[1]];
     }
 
     function handleZoom() {
         if (!m0) return;
+
+        // TODO should we update m0 after each passage here?
 
         var m1 = [
                 d3.event.sourceEvent.pageX,
@@ -674,10 +672,6 @@ map.makeSVG = function makeSVG(gd) {
             o1 = [
                 o0[0] + dmx / 4,
                 o0[1] + dmy / 4
-            ],
-            t1 = [  // TODO is this obsolete?
-                t0[0] + dmx,
-                t0[1] + dmy
             ],
             c1 = [
                 c0[0] + dmx / 4,
@@ -697,16 +691,16 @@ map.makeSVG = function makeSVG(gd) {
             map.projection.rotate([-o1[0], -o0[1]]);
 
             // TODO Do all non-clipped projection have an inverse?
-            // TODO Why does this give different results during pan?
+            //      Why does this give different results during pan?
 //             var halfspan = map.projection.invert([0, map.bounds[1] / 2])[1]
 
             var latLayout = mapLayout.lataxis,
                 latRange = latLayout.range,
                 latFullRange = latLayout._fullRange,
-                // TODO Is this good enough?
                 cMin = Math.min(0.75 * latRange[0], 0.75 * latFullRange[0]),
                 cMax = Math.max(0.75 * latRange[1], 0.75 * latFullRange[1]);
 
+            // TODO Is this good enough?
             if (c1[1] > cMax) c1[1] = cMax;
             if (c1[1] < cMin) c1[1] = cMin;
 
@@ -742,6 +736,7 @@ map.makeSVG = function makeSVG(gd) {
         map.drawPaths();
     };
 
+    // attach zoom and dblclick event to svg container
     svg
         .call(zoom)
         .on("dblclick.zoom", null)  // N.B. disable dblclick zoom default

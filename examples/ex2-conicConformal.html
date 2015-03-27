@@ -41,58 +41,23 @@ gd.data = [
 
 gd.layout = {
     width: 1000,
-    height: 1000,
+//     height: 1000,
     map: {
         projection: {
-//             type: 'equirectangular',
-//             type: 'mercator',
-//             type: 'azimuthalEqualArea',
-//             type: 'azimuthalEquidistant',
+            type: 'conicConformal',
 //             type: 'conicEqualArea',
-//             type: 'conicConformal',
 //             type: 'conicEquidistant',
-//             type: 'gnomonic',
-//             type: 'stereographic',
-//             type: 'orthographic',
-//             type: 'transverseMercator',
-//             type: 'albersUsa',
-            //
-            type: 'kavrayskiy7',
-            //
-            rotate: [90, 0]
+            rotate: [0, 0]
         },
-        //
-        showcoastlines: true,
-        coastlinescolor: "black",
-        coastlineswidth: 2,
+        lonaxis: {
+//             range: [-100, 100],
+        },
+        lataxis: {
+//             range: [0, 90],
+        },
         //
         showland: true,
         landfillcolor: "#3B5323",
-        //
-        showocean: true,
-        oceanfillcolor: "#3399FF",
-        //
-        showcountries: false,
-        countrieslinecolor: "#aaa",
-        countrieslinewidth: 1,
-        //
-        showsubunits: false,
-        subunitslinecolor: "#aaa",
-        subunitslinewidth: 1,
-        //
-        lonaxis: {
-            showgrid: false,
-            range: [0, 180],
-//             range: [-180, 0],
-//             range: [-100, 100],
-            gridwidth: 2,
-            gridcolor: "black"
-        },
-        lataxis: {
-            range: [-40, 70],
-            gridwidth: 2,
-            gridcolor: "black"
-        }
     }
 };
 

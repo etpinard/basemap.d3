@@ -110,7 +110,10 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     // for conic projections
-    coerceMapNest('projection', 'parallels', null);
+    if (projType.indexOf('conic')!==-1) {
+        // same default as d3
+        coerceMapNest('projection', 'parallels', [0, 60]);
+    }
 
     coerceMap('showcoastlines', (scope==='world'));
     coerceMap('coastlinescolor', 'black');

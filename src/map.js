@@ -112,7 +112,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // for conic projections
     if (projType.indexOf('conic')!==-1) {
-        // same default as d3
+        // same default as d3.geo.projection.parallels
         coerceMapNest('projection', 'parallels', [0, 60]);
     }
 
@@ -668,24 +668,23 @@ map.makeSVG = function makeSVG(gd) {
 
         // TODO should we update m0 after each passage here?
 
-        // TODO should we put a low-pass filter on dmy when scale is small?
-        //      OR maybe dmx & dmy should depend on scale?
-
-        // TODO should only Math.max(dmx, dmy) be considered at once?
+        // pixel to degrees constant and minimum pixel distance
+        var PXTODEGREES =  2 * map.projection.scale() / projLayout._fullScale,
+            MINPXDIST = 10;
 
         var m1 = [
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
             ],
-            dmx = m0[0] - m1[0],
-            dmy = m1[1] - m0[1],
+            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIST ? 0 : (m0[0]-m1[0]) / PXTODEGREES,
+            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIST ? 0 : (m1[1]-m0[1]) / PXTODEGREES,
             o1 = [
-                o0[0] + dmx / 4,
-                o0[1] + dmy / 4
+                o0[0] + dmx,
+                o0[1] + dmy
             ],
             c1 = [
-                c0[0] + dmx / 4,
-                c0[1] + dmy / 4
+                c0[0] + dmx,
+                c0[1] + dmy
             ];
 
         function handleClipped() {
@@ -710,7 +709,7 @@ map.makeSVG = function makeSVG(gd) {
                 cMin = Math.min(0.75 * latRange[0], 0.75 * latFullRange[0]),
                 cMax = Math.max(0.75 * latRange[1], 0.75 * latFullRange[1]);
 
-            // TODO Is this good enough?
+            // bound the c[1] into [cMin, cMax]
             if (c1[1] > cMax) c1[1] = cMax;
             if (c1[1] < cMin) c1[1] = cMin;
 

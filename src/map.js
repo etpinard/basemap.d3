@@ -88,9 +88,13 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // TODO default should be '50m' when scope isn't world
     var resolution = coerceMap('resolution', '110m');
+
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
 
     coerceMap('_topojson', scope + '_' + resolution);
+
+    // TODO something smarter for custom range?
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     var lonSpan = (projType in map.LONSPAN.world) ?
             map.LONSPAN.world[projType] :
@@ -146,8 +150,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('framelinewidth', 2);
 
     coerceMapNest('projection', 'scale', 1);
-
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     var autorange,
         halfSpan,
@@ -703,11 +705,14 @@ map.makeSVG = function makeSVG(gd) {
             //      Why does this give different results during pan?
 //             var halfspan = map.projection.invert([0, map.bounds[1] / 2])[1]
 
+            // tolerance factor for panning above/below latitude range
+            var TOL = 0.75;
+
             var latLayout = mapLayout.lataxis,
                 latRange = latLayout.range,
                 latFullRange = latLayout._fullRange,
-                cMin = Math.min(0.75 * latRange[0], 0.75 * latFullRange[0]),
-                cMax = Math.max(0.75 * latRange[1], 0.75 * latFullRange[1]);
+                cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
+                cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
 
             // bound the c[1] into [cMin, cMax]
             if (c1[1] > cMax) c1[1] = cMax;

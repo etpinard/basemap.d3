@@ -259,11 +259,10 @@ map.doAutoRange = function doAutoRange(gd) {
 map.setConvert = function setConvert(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
-        mapDomain = mapLayout.domain,
         projLayout = mapLayout.projection,
-        isClipped = projLayout._isClipped,
         lonLayout = mapLayout.lonaxis,
-        latLayout = mapLayout.lataxis;
+        latLayout = mapLayout.lataxis,
+        mapDomain = mapLayout.domain;
 
     var gs = fullLayout._gs = {};
 
@@ -275,11 +274,15 @@ map.setConvert = function setConvert(gd) {
     gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
     gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
-    // TODO use this instead of gs.w / gs.h
-    // TODO consider frame width into figure w/h
-
+    // map width & height within domain (similar to axes.js)
+    // TODO attach these to gs instead?
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
+
+    // offsets
+    // TODO attach these to gs instead?
+    lonLayout._offset = gs.l + mapDomain.x[0] * gs.w;
+    latLayout._offset = gs.t + (1 - mapDomain.y[1]) * gs.h;
 
     // add padding around range to avoid aliasing
     var lon0 = lonLayout.range[0] + map.CLIPPAD,
@@ -292,11 +295,11 @@ map.setConvert = function setConvert(gd) {
         latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
         latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
 
-    // initial translation (makes the math easier)
+    // initial translation (makes the math in setScale easier)
     map.setTranslate = function setTranslate() {
         projLayout._translate = [
-            gs.l + gs.w / 2,
-            gs.t + gs.h / 2
+            gs.l + lonLayout._length / 2,
+            gs.t + latLayout._length / 2
         ];
     };
 
@@ -386,9 +389,12 @@ map.setConvert = function setConvert(gd) {
         }
 
         function getScale(bounds) {
+
+            // TODO if 'free' ... else ...
+
             return Math.min(
-                scale0 * gs.w  / (bounds[1][0] - bounds[0][0]),
-                scale0 * gs.h / (bounds[1][1] - bounds[0][1])
+                scale0 * lonLayout._length / (bounds[1][0] - bounds[0][0]),
+                scale0 * latLayout._length / (bounds[1][1] - bounds[0][1])
             );
         }
 
@@ -422,8 +428,8 @@ map.setConvert = function setConvert(gd) {
         // of the range box is at the top-left corner of the viewbox
         bounds = getBounds(projection, rangeBox);
         projection.translate([
-            gs.w/2 - bounds[0][0],
-            gs.h/2 - bounds[0][1]
+            projLayout._translate[0] - bounds[0][0],
+            projLayout._translate[1] - bounds[0][1]
         ]);
 
         // clip regions out of the range box
@@ -432,7 +438,6 @@ map.setConvert = function setConvert(gd) {
         projection.clipExtent(bounds);
 
         // Effective width / height of container
-        // TODO handle margin and domains?
         gs.wEff = Math.round(bounds[1][0]);
         gs.hEff = Math.round(bounds[1][1]);
 

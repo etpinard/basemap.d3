@@ -85,6 +85,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
 
     var scope = coerceMap('scope', 'world');
+
+    // TODO default should be '50m' when scope isn't world
     var resolution = coerceMap('resolution', '110m');
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
 
@@ -277,8 +279,7 @@ map.setConvert = function setConvert(gd) {
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
-    // add padding at antemeridian to avoid aliasing
-    // TODO this probably too crude in general
+    // add padding around range to avoid aliasing
     var lon0 = lonLayout.range[0] + map.CLIPPAD,
         lon1 = lonLayout.range[1] - map.CLIPPAD,
         lat0 = latLayout.range[0] + map.CLIPPAD,
@@ -613,8 +614,8 @@ map.makeSVG = function makeSVG(gd) {
 
     var svg = d3.select(gd.div).select('div.plot-div')
       .append("svg")
-        .attr("width", map.DEBUG ? gs.w : gs.wEff)
-        .attr("height", map.DEBUG ? gs.h : gs.hEff);
+        .attr("width", (map.DEBUG && gs.w > gs.wEff) ? gs.w : gs.wEff)
+        .attr("height", (map.DEBUG && gs.h > gs.hEff) ? gs.h : gs.hEff);
 
     svg.append("g")
         .classed("basemap", true);
@@ -666,6 +667,11 @@ map.makeSVG = function makeSVG(gd) {
         if (!m0) return;
 
         // TODO should we update m0 after each passage here?
+
+        // TODO should we put a low-pass filter on dmy when scale is small?
+        //      OR maybe dmx & dmy should depend on scale?
+
+        // TODO should only Math.max(dmx, dmy) be considered at once?
 
         var m1 = [
                 d3.event.sourceEvent.pageX,

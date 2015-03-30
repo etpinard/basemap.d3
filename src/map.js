@@ -165,8 +165,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     var lonRange = coerceMapNest('lonaxis', 'range', fullRange);
 
-    // TODO validate rotate given range
-
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonRange[0]);
     coerceMapNest('lonaxis', 'dtick', 30);
@@ -352,8 +350,8 @@ map.setConvert = function setConvert(gd) {
                 rangeBox;
 
             // TODO is this enough to handle ALL cases?
-            // -- this makes scaling less precise as
-            //    great circles can overshoot the boundary
+            // -- this makes scaling less precise than using d3.geo.graticule
+            //    as great circles can overshoot the boundary
             //    (that's not a big deal I think)
             rangeBox = {
                 type: "Polygon",
@@ -361,22 +359,16 @@ map.setConvert = function setConvert(gd) {
                   [ [lon0, lat0],
                     [lon0 , lat1],
                     [lon0 + dlon4, lat1],
-                    [lon0 + 2*dlon4, lat1],
-                    [lon0 + 3*dlon4, lat1],
+                    [lon0 + 2 * dlon4, lat1],
+                    [lon0 + 3 * dlon4, lat1],
                     [lon1, lat1],
                     [lon1, lat0],
                     [lon1 - dlon4, lat0],
-                    [lon1 - 2*dlon4, lat0],
-                    [lon1 - 3*dlon4, lat0],
+                    [lon1 - 2 * dlon4, lat0],
+                    [lon1 - 3 * dlon4, lat0],
                     [lon0, lat0] ]
                 ]
             };
-
-            // or this, which might lead to better results
-            // -- this messed up orthographic with rotate[1] = big
-//              rangeBox = d3.geo.graticule()
-//                 .extent([[lon0, lat0], [lon1, lat1]])
-//                 .outline();
 
             return rangeBox;
         }
@@ -416,13 +408,6 @@ map.setConvert = function setConvert(gd) {
         projLayout._fullScale = getScale(fullBounds);
 
         projection.scale(scale);
-
-        // TODO gnomonic
-        // this projection is non-finite, should it just scale with width?
-        // e.g. -> gs.w / (2 * Math.PI)
-
-        // TODO scale is off for dflt range in:
-        // stereographic, gnomonic
 
         // translate the projection so that the top-left corner
         // of the range box is at the top-left corner of the viewbox
@@ -706,10 +691,6 @@ map.makeSVG = function makeSVG(gd) {
 
             map.projection.rotate([-o1[0], -o0[1]]);
 
-            // TODO Do all non-clipped projection have an inverse?
-            //      Why does this give different results during pan?
-//             var halfspan = map.projection.invert([0, map.bounds[1] / 2])[1]
-
             // tolerance factor for panning above/below latitude range
             var TOL = 0.75;
 
@@ -719,7 +700,7 @@ map.makeSVG = function makeSVG(gd) {
                 cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
                 cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
 
-            // bound the c[1] into [cMin, cMax]
+            // bound c[1] between [cMin, cMax]
             if (c1[1] > cMax) c1[1] = cMax;
             if (c1[1] < cMin) c1[1] = cMin;
 
@@ -734,8 +715,9 @@ map.makeSVG = function makeSVG(gd) {
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
         .scaleExtent([
+            // TODO is this good enough?
             0.5 * projLayout._fullScale,
-            10 * projLayout._fullScale  // TODO is this good enough?
+            10 * projLayout._fullScale
         ])
         .on("zoomstart", function() {
             handleZoomStart();
@@ -746,7 +728,8 @@ map.makeSVG = function makeSVG(gd) {
             map.drawPaths();
         })
         .on("zoomend", function() {
-            // map.drawPaths();  // TODO do this on the highest resolution!
+            // TODO do this on the highest resolution!
+            // map.drawPaths();
         });
 
     var dblclick = function() {

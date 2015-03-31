@@ -93,7 +93,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     coerceMap('_topojson', scope + '_' + resolution);
 
-    // TODO something smarter for custom range?
+    // TODO validate?
+    // can yield weird results when rotate[0] is outline lonaxis.range
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     var lonSpan = (projType in map.LONSPAN.world) ?
@@ -658,18 +659,16 @@ map.makeSVG = function makeSVG(gd) {
     function handleZoom() {
         if (!m0) return;
 
-        // TODO should we update m0 after each passage here?
-
         // pixel to degrees constant and minimum pixel distance
-        var PXTODEGREES =  2 * map.projection.scale() / projLayout._fullScale,
-            MINPXDIST = 10;
+        var PXTODEGS = 3 * map.projection.scale() / projLayout._fullScale,
+            MINPXDIS = 10;
 
         var m1 = [
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
             ],
-            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIST ? 0 : (m0[0]-m1[0]) / PXTODEGREES,
-            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIST ? 0 : (m1[1]-m0[1]) / PXTODEGREES,
+            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
+            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS,
             o1 = [
                 o0[0] + dmx,
                 o0[1] + dmy

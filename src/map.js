@@ -85,10 +85,16 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
 
     var scope = coerceMap('scope', 'world');
+
+    // TODO default should be '50m' when scope isn't world
     var resolution = coerceMap('resolution', '110m');
+
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
 
     coerceMap('_topojson', scope + '_' + resolution);
+
+    // TODO something smarter for custom range?
+    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
     var lonSpan = (projType in map.LONSPAN.world) ?
             map.LONSPAN.world[projType] :
@@ -110,7 +116,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // for conic projections
     if (projType.indexOf('conic')!==-1) {
-        // same default as d3
+        // same default as d3.geo.projection.parallels
         coerceMapNest('projection', 'parallels', [0, 60]);
     }
 
@@ -145,8 +151,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     coerceMapNest('projection', 'scale', 1);
 
-    var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
-
     var autorange,
         halfSpan,
         fullRange;
@@ -160,8 +164,6 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
         [rotate[0] - halfSpan, rotate[0] + halfSpan]);
 
     var lonRange = coerceMapNest('lonaxis', 'range', fullRange);
-
-    // TODO validate rotate given range
 
     coerceMapNest('lonaxis', 'showgrid', true);
     coerceMapNest('lonaxis', 'tick0', lonRange[0]);
@@ -255,11 +257,10 @@ map.doAutoRange = function doAutoRange(gd) {
 map.setConvert = function setConvert(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
-        mapDomain = mapLayout.domain,
         projLayout = mapLayout.projection,
-        isClipped = projLayout._isClipped,
         lonLayout = mapLayout.lonaxis,
-        latLayout = mapLayout.lataxis;
+        latLayout = mapLayout.lataxis,
+        mapDomain = mapLayout.domain;
 
     var gs = fullLayout._gs = {};
 
@@ -271,14 +272,17 @@ map.setConvert = function setConvert(gd) {
     gs.w = Math.round(fullLayout.width) - gs.l - gs.r;
     gs.h = Math.round(fullLayout.height) - gs.t - gs.b;
 
-    // TODO use this instead of gs.w / gs.h
-    // TODO consider frame width into figure w/h
-
+    // map width & height within domain (similar to axes.js)
+    // TODO attach these to gs instead?
     lonLayout._length = gs.w * (mapDomain.x[1] - mapDomain.x[0]);
     latLayout._length = gs.h * (mapDomain.y[1] - mapDomain.y[0]);
 
-    // add padding at antemeridian to avoid aliasing
-    // TODO this probably too crude in general
+    // offsets
+    // TODO attach these to gs instead?
+    lonLayout._offset = gs.l + mapDomain.x[0] * gs.w;
+    latLayout._offset = gs.t + (1 - mapDomain.y[1]) * gs.h;
+
+    // add padding around range to avoid aliasing
     var lon0 = lonLayout.range[0] + map.CLIPPAD,
         lon1 = lonLayout.range[1] - map.CLIPPAD,
         lat0 = latLayout.range[0] + map.CLIPPAD,
@@ -289,11 +293,11 @@ map.setConvert = function setConvert(gd) {
         latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
         latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
 
-    // initial translation (makes the math easier)
+    // initial translation (makes the math in setScale easier)
     map.setTranslate = function setTranslate() {
         projLayout._translate = [
-            gs.l + gs.w / 2,
-            gs.t + gs.h / 2
+            gs.l + lonLayout._length / 2,
+            gs.t + latLayout._length / 2
         ];
     };
 
@@ -346,8 +350,8 @@ map.setConvert = function setConvert(gd) {
                 rangeBox;
 
             // TODO is this enough to handle ALL cases?
-            // -- this makes scaling less precise as
-            //    great circles can overshoot the boundary
+            // -- this makes scaling less precise than using d3.geo.graticule
+            //    as great circles can overshoot the boundary
             //    (that's not a big deal I think)
             rangeBox = {
                 type: "Polygon",
@@ -355,22 +359,16 @@ map.setConvert = function setConvert(gd) {
                   [ [lon0, lat0],
                     [lon0 , lat1],
                     [lon0 + dlon4, lat1],
-                    [lon0 + 2*dlon4, lat1],
-                    [lon0 + 3*dlon4, lat1],
+                    [lon0 + 2 * dlon4, lat1],
+                    [lon0 + 3 * dlon4, lat1],
                     [lon1, lat1],
                     [lon1, lat0],
                     [lon1 - dlon4, lat0],
-                    [lon1 - 2*dlon4, lat0],
-                    [lon1 - 3*dlon4, lat0],
+                    [lon1 - 2 * dlon4, lat0],
+                    [lon1 - 3 * dlon4, lat0],
                     [lon0, lat0] ]
                 ]
             };
-
-            // or this, which might lead to better results
-            // -- this messed up orthographic with rotate[1] = big
-//              rangeBox = d3.geo.graticule()
-//                 .extent([[lon0, lat0], [lon1, lat1]])
-//                 .outline();
 
             return rangeBox;
         }
@@ -383,9 +381,12 @@ map.setConvert = function setConvert(gd) {
         }
 
         function getScale(bounds) {
+
+            // TODO if 'free' ... else ...
+
             return Math.min(
-                scale0 * gs.w  / (bounds[1][0] - bounds[0][0]),
-                scale0 * gs.h / (bounds[1][1] - bounds[0][1])
+                scale0 * lonLayout._length / (bounds[1][0] - bounds[0][0]),
+                scale0 * latLayout._length / (bounds[1][1] - bounds[0][1])
             );
         }
 
@@ -408,19 +409,12 @@ map.setConvert = function setConvert(gd) {
 
         projection.scale(scale);
 
-        // TODO gnomonic
-        // this projection is non-finite, should it just scale with width?
-        // e.g. -> gs.w / (2 * Math.PI)
-
-        // TODO scale is off for dflt range in:
-        // stereographic, gnomonic
-
         // translate the projection so that the top-left corner
         // of the range box is at the top-left corner of the viewbox
         bounds = getBounds(projection, rangeBox);
         projection.translate([
-            gs.w/2 - bounds[0][0],
-            gs.h/2 - bounds[0][1]
+            projLayout._translate[0] - bounds[0][0],
+            projLayout._translate[1] - bounds[0][1]
         ]);
 
         // clip regions out of the range box
@@ -429,7 +423,6 @@ map.setConvert = function setConvert(gd) {
         projection.clipExtent(bounds);
 
         // Effective width / height of container
-        // TODO handle margin and domains?
         gs.wEff = Math.round(bounds[1][0]);
         gs.hEff = Math.round(bounds[1][1]);
 
@@ -613,8 +606,8 @@ map.makeSVG = function makeSVG(gd) {
 
     var svg = d3.select(gd.div).select('div.plot-div')
       .append("svg")
-        .attr("width", map.DEBUG ? gs.w : gs.wEff)
-        .attr("height", map.DEBUG ? gs.h : gs.hEff);
+        .attr("width", (map.DEBUG && gs.w > gs.wEff) ? gs.w : gs.wEff)
+        .attr("height", (map.DEBUG && gs.h > gs.hEff) ? gs.h : gs.hEff);
 
     svg.append("g")
         .classed("basemap", true);
@@ -667,19 +660,23 @@ map.makeSVG = function makeSVG(gd) {
 
         // TODO should we update m0 after each passage here?
 
+        // pixel to degrees constant and minimum pixel distance
+        var PXTODEGREES =  2 * map.projection.scale() / projLayout._fullScale,
+            MINPXDIST = 10;
+
         var m1 = [
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
             ],
-            dmx = m0[0] - m1[0],
-            dmy = m1[1] - m0[1],
+            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIST ? 0 : (m0[0]-m1[0]) / PXTODEGREES,
+            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIST ? 0 : (m1[1]-m0[1]) / PXTODEGREES,
             o1 = [
-                o0[0] + dmx / 4,
-                o0[1] + dmy / 4
+                o0[0] + dmx,
+                o0[1] + dmy
             ],
             c1 = [
-                c0[0] + dmx / 4,
-                c0[1] + dmy / 4
+                c0[0] + dmx,
+                c0[1] + dmy
             ];
 
         function handleClipped() {
@@ -694,17 +691,16 @@ map.makeSVG = function makeSVG(gd) {
 
             map.projection.rotate([-o1[0], -o0[1]]);
 
-            // TODO Do all non-clipped projection have an inverse?
-            //      Why does this give different results during pan?
-//             var halfspan = map.projection.invert([0, map.bounds[1] / 2])[1]
+            // tolerance factor for panning above/below latitude range
+            var TOL = 0.75;
 
             var latLayout = mapLayout.lataxis,
                 latRange = latLayout.range,
                 latFullRange = latLayout._fullRange,
-                cMin = Math.min(0.75 * latRange[0], 0.75 * latFullRange[0]),
-                cMax = Math.max(0.75 * latRange[1], 0.75 * latFullRange[1]);
+                cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
+                cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
 
-            // TODO Is this good enough?
+            // bound c[1] between [cMin, cMax]
             if (c1[1] > cMax) c1[1] = cMax;
             if (c1[1] < cMin) c1[1] = cMin;
 
@@ -719,8 +715,9 @@ map.makeSVG = function makeSVG(gd) {
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
         .scaleExtent([
+            // TODO is this good enough?
             0.5 * projLayout._fullScale,
-            10 * projLayout._fullScale  // TODO is this good enough?
+            10 * projLayout._fullScale
         ])
         .on("zoomstart", function() {
             handleZoomStart();
@@ -731,7 +728,8 @@ map.makeSVG = function makeSVG(gd) {
             map.drawPaths();
         })
         .on("zoomend", function() {
-            // map.drawPaths();  // TODO do this on the highest resolution!
+            // TODO do this on the highest resolution!
+            // map.drawPaths();
         });
 
     var dblclick = function() {

@@ -35,22 +35,23 @@ gd.data = [
 
 gd.layout = {
     map: {
-        scope: 'europe',
+        scope: 'usa',
         projection: {
-            type: 'mercator',
-            rotate: [20, 0]
+            type: 'conicEqualArea',
+            rotate: [-96, 0],
+            parallels: [29.5, 45.5]
         },
-//         showocean: true,
+        showocean: true,
         showrivers: true,
         showlakes: true,
-        showland: true,
+//         showland: true,
 //         showcountries: true,
 //         showsubunits: true,
         lonaxis: {
-            range: [-30, 180]
+            range: [-180, -50]
         },
         lataxis: {
-            range: [30, 82]
+            range: [10, 82]
         }
     }
 };

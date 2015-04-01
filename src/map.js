@@ -86,8 +86,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     var scope = coerceMap('scope', 'world');
 
-    // TODO default should be '50m' when scope isn't world
-    var resolution = coerceMap('resolution', '110m');
+    var resolution = coerceMap('resolution',
+        scope==='world' ? '110m' : '50m');
 
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
 

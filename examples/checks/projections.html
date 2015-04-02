@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/d3.geo.projection.v0.min.js" charset="utf-8"></script>
+
+<h1> Do all d3 projections have inverses?</h1>
+
+<script>
+var projectionTypes = [
+    'equirectangular',
+    'mercator',
+    'azimuthalEqualArea',
+    'azimuthalEquidistant',
+    'conicEqualArea',
+    'conicConformal',
+    'conicEquidistant',
+    'gnomonic',
+    'stereographic',
+    'orthographic',
+    'transverseMercator',
+    'kavrayskiy7'
+];
+
+projectionTypes.forEach(function(t) {
+    var p = d3.geo[t]();
+
+    if (p.invert) {
+        console.log(t + ' has an inverse');
+    } else {
+        console.log('!!! ' + t + ' does not have an inverse');
+    }
+        
+})
+
+
+</script>
+</body>

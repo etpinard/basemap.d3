@@ -19,7 +19,6 @@ function main(err, configFile) {
         [toposToWrite, config.vectors]
     );
 
-
     function scopeBaseShapefile(r, s) {
         var specs = s.specs,
             filter,
@@ -44,8 +43,15 @@ function main(err, configFile) {
             "-filter",
             filter,
             "-o",
+            config.wget_dir + common.tn(r, s.name, specs.src, 'tmp.shp'),
+            "force",
+            "&&",
+            "ogr2ogr",
+            "-overwrite",
+            "-clipsrc",
+            specs.bounds.join(' '),
             config.wget_dir + common.tn(r, s.name, specs.src, 'shp'),
-            "force"
+            config.wget_dir + common.tn(r, s.name, specs.src, 'tmp.shp')
        ].join(' ');
 
        if (DEBUG) console.log(cmd);
@@ -69,7 +75,9 @@ function main(err, configFile) {
                     expr = [
                         '-where ',
                         "\"", specs.key, " IN ",
-                        "('", specs.val, "')\""
+                        "('", specs.val, "')\" ",
+                        '-clipsrc ',
+                        specs.bounds.join(' ')
                     ].join('');
                 }
                 else if (opt==='clipsrc') {

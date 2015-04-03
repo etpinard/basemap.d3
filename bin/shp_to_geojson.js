@@ -4,7 +4,7 @@ var fs = require('fs'),
 var common = require('./common');
 var mapshaper = "./node_modules/mapshaper/bin/mapshaper";
 
-var DEBUG = false;
+var DEBUG = false;  // logs commands if true
 
 fs.readFile('./bin/config.json', 'utf8', main);
 
@@ -12,10 +12,11 @@ function main(err, configFile) {
     if (err) throw err;
 
     var config = JSON.parse(configFile);
+    var toposToWrite = common.getToposToWrite(config);
 
     var bar = common.makeBar(
         'Converting shapefiles to GeoJSON: [:bar] :current/:total',
-        [config.resolutions, config.vectors, config.scopes]
+        [toposToWrite, config.vectors]
     );
 
 
@@ -132,19 +133,19 @@ function main(err, configFile) {
         });
     }
 
-    config.resolutions.forEach(function(r) {
-        config.scopes.forEach(function(s) {
+    toposToWrite.forEach(function(topo) {
+        var r = topo.r,
+            s = topo.s;
 
-            if (s.specs===false) {
-                vectorLoop(r, s, false);
-            }
-            else {
-                exec(scopeBaseShapefile(r, s), function() {
-                    vectorLoop(r, s, true);
-                });
-            }
+        if (s.specs===false) {
+            vectorLoop(r, s, false);
+        }
+        else {
+            exec(scopeBaseShapefile(r, s), function() {
+                vectorLoop(r, s, true);
+            });
+        }
 
-        });
     });
 
 }

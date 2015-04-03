@@ -13,43 +13,27 @@ var gd = {};
 gd.data = [
     {
         type: "map-scatter",
-        mode: "lines",
-        lon: [-77, 116],
-        lat: [39, 24],
-        line: {
-            color: 'rgb(0, 255, 255)',
-            width: 5
-        }
-    },
-    {
-        type: "map-scatter",
         mode: "markers",
-        lon: [-75, 90, 43],
-        lat: [45, 0, -12],
-        marker: {
-            color: 'rgb(255,0,0)',
-            size: 20
-        }
+        lon: [ 90],
+        lat: [0],
     }
 ];
 
 gd.layout = {
     map: {
-        scope: 'usa',
+        scope: 'asia',
 //         resolution: '110m',
         projection: {
-            type: 'conicEqualArea',
-//             type: 'orthographic',
-            rotate: [-96, 0],
-            parallels: [29.5, 45.5]
+            type: 'mercator',
+            rotate: [30, 0]
         },
-        showcoastlines: true,
         showocean: true,
+        showcoastlines: true,
         showrivers: true,
         showlakes: true,
         showland: true,
-//         showcountries: true,
-        showsubunits: true
+        showcountries: true,
+//         showsubunits: true,
     }
 };
 

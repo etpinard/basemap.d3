@@ -8,24 +8,22 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 ### Current features
 
 - Basemap of coastlines, land, ocean, countries, USA states, river and lakes
-- Scatter points/text and great circle paths in (lon, lat) coordintates on top of a basemap
+- Scatter points/text and great circle paths in (lon, lat) coordinates on top of a basemap
 - Choropleth of countries (with custom boundary lines)
 - Scatter points/text by locations (e.g. ISO-3)
 - Periodic panning and zoom
 - Customizable lon/lat axis ranges, graticule width, color and spacing
 - Customizable map frame
+- High resolution map scopes of Europe, Asia, North America, South America and USA 
 
 ### TODO list
 
 - Improve maps set scale + controls (almost there ...)
-- Improve scopes: figure out what land / ocean / coastlines layers should be
 
 - Add zeroline (lon/lat) attributes.
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
   provinces)
-
-- ...
 
 ### Running it locally
 
@@ -68,8 +66,3 @@ make convert
 ### API
 
 Describe the figure object of the examples in `./examples/`
-
-#### Axis ranges and projection rotation
-
-... TODO
-

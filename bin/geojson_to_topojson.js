@@ -10,10 +10,11 @@ function main(err, configFile) {
     if (err) throw err;
 
     var config = JSON.parse(configFile);
+    var toposToWrite = common.getToposToWrite(config);
 
     var barWrite = common.makeBar(
         'Writing into topojson: [:bar] :current/:total',
-        [config.resolutions, config.scopes]
+        [toposToWrite]
     );
 
     // map all geojson properties to topojson
@@ -21,38 +22,40 @@ function main(err, configFile) {
         return feature.properties;
     }
 
-    config.resolutions.forEach(function(r) {
-        config.scopes.forEach(function(s) {
-            var collections = {};
+    toposToWrite.forEach(function(topo) {
+        var r = topo.r,
+            s = topo.s;
 
-            var barRead = common.makeBar(
-                'Processing GeoJSON files : [:bar] :current/:total',
-                [config.vectors]
-            );
+        var collections = {};
 
-            config.vectors.forEach(function(v) {
-                var path = config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
-                    d = fs.readFileSync(path, 'utf8'),
-                    collection = JSON.parse(d);
+        var barRead = common.makeBar(
+            'Processing GeoJSON files : [:bar] :current/:total',
+            [config.vectors]
+        );
 
-                formatProperties(collection, v);
-                collections[v.name] = collection;
+        config.vectors.forEach(function(v) {
+            var path = config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+                d = fs.readFileSync(path, 'utf8'),
+                collection = JSON.parse(d);
 
-                barRead.tick();
-            });
+            formatProperties(collection, v);
+            collections[v.name] = collection;
 
-            // TODO experiment with simplification/quantization
-            var topology = topojson.topology(collections, {
-                'verbose': true,
-                'property-transform': propertyTransform
-             });
-
-            var outPath = config.out_dir + common.out(r, s.name);
-
-            fs.writeFile(outPath, JSON.stringify(topology), function(err){
-                if (!err) barWrite.tick();
-            });
+            barRead.tick();
         });
+
+        // TODO experiment with simplification/quantization
+        var topology = topojson.topology(collections, {
+            'verbose': true,
+            'property-transform': propertyTransform
+         });
+
+        var outPath = config.out_dir + common.out(r, s.name);
+
+        fs.writeFile(outPath, JSON.stringify(topology), function(err){
+            if (!err) barWrite.tick();
+        });
+
     });
 
 }

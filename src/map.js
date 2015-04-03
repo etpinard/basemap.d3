@@ -28,6 +28,26 @@ map.LATSPAN.world = {
     conicConformal: 150  // TODO appears to make things work; is this correct?
 };
 
+map.DFLTLONRANGE = {
+    world: [-180, 180],
+    usa: [-180, -50],
+    europe: [-30, 60],
+    asia: [20, 160],
+    africa: [-30, 60],
+    'north-america': [-180, -45],
+    'south-america': [-100, -30]
+};
+
+map.DFLTLATRANGE = {
+    world: [-90, 90],
+    usa: [15, 80],
+    europe: [30, 80],
+    asia: [-15, 55],
+    africa: [-40, 40],
+    'north-america': [5, 85],
+    'south-america': [-60, 15]
+};
+
 // angular pad to avoid rounding error around clip angles
 map.CLIPPAD = 1e-3;
 
@@ -113,7 +133,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
          map.LONSPAN.world[projType] / 2);
 
     // TODO implement 'rotate' or 'translate'
-    coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
+//     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
 
     // for conic projections
     if (projType.indexOf('conic')!==-1) {
@@ -142,11 +162,14 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('countrieslinecolor', '#aaa');
     coerceMap('countrieslinewidth', 1.5);
 
+    // USA states at 110m
+    // USA states + Canada provinces at 50m
     coerceMap('showsubunits', false);
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    coerceMap('showframe', true);
+    // TODO frame around scope?
+    coerceMap('showframe', scope==='world');
     coerceMap('framelinecolor', 'black');
     coerceMap('framelinewidth', 2);
 
@@ -162,7 +185,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     halfSpan = lonSpan / 2;
     fullRange = coerceMapNest('lonaxis', '_fullRange',
-        [rotate[0] - halfSpan, rotate[0] + halfSpan]);
+        scope==='world' ?
+            [rotate[0] - halfSpan, rotate[0] + halfSpan] :
+            map.DFLTLONRANGE[scope]);
 
     var lonRange = coerceMapNest('lonaxis', 'range', fullRange);
 
@@ -178,7 +203,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     halfSpan = latSpan / 2;
     fullRange = coerceMapNest('lataxis', '_fullRange',
-        [rotate[1] - halfSpan, rotate[1] + halfSpan]);
+        scope==='world' ?
+            [rotate[1] - halfSpan, rotate[1] + halfSpan] :
+            map.DFLTLATRANGE[scope]);
 
     var latRange = coerceMapNest('lataxis', 'range', fullRange);
 
@@ -798,11 +825,13 @@ map.init = function init(gd) {
             graticule = {};
 
         function makeGraticule(step) {
-            // TODO something smarter for scopes
+            var scope = mapLayout.scope,
+                lonRange = map.DFLTLONRANGE[scope],
+                latRange = map.DFLTLATRANGE[scope];
             return d3.geo.graticule()
                 .extent([
-                    [-180, -90],
-                    [180, 90]
+                    [lonRange[0], latRange[0]],
+                    [lonRange[1], latRange[1]]
                 ])
                 .step(step);
         }

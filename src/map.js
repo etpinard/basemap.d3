@@ -30,8 +30,7 @@ map.PROJNAMES = {
 };
 
 // max longitudinal angular span
-map.LONSPAN = {};
-map.LONSPAN.world = {
+map.LONSPAN = {
     '*': 360,
     'orthographic': 180,
     'azimuthal-equal-area': 360,
@@ -41,8 +40,7 @@ map.LONSPAN.world = {
 };
 
 // max latitudinal angular span
-map.LATSPAN = {};
-map.LATSPAN.world = {
+map.LATSPAN = {
     '*': 180,
     'conic-conformal': 150  // TODO appears to make things work; is this correct?
 };
@@ -136,20 +134,20 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     // can yield weird results when rotate[0] is outline lonaxis.range
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
-    var lonSpan = (projType in map.LONSPAN.world) ?
-            map.LONSPAN.world[projType] :
-            map.LONSPAN.world['*'];
+    var lonSpan = (projType in map.LONSPAN) ?
+            map.LONSPAN[projType] :
+            map.LONSPAN['*'];
 
-    var latSpan = (projType in map.LATSPAN.world) ?
-            map.LATSPAN.world[projType] :
-            map.LATSPAN.world['*'];
+    var latSpan = (projType in map.LATSPAN) ?
+            map.LATSPAN[projType] :
+            map.LATSPAN['*'];
 
     // TODO expose to users
     var isClipped = coerceMapNest('projection', '_isClipped',
-        (projType in map.LONSPAN.world));
+        (projType in map.LONSPAN));
 
     if (isClipped) coerceMapNest('projection', '_clipAngle',
-         map.LONSPAN.world[projType] / 2);
+         map.LONSPAN[projType] / 2);
 
     // TODO implement 'rotate' or 'translate'
 //     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));

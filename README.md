@@ -15,15 +15,16 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 - Customizable lon/lat axis ranges, graticule width, color and spacing
 - Customizable map frame
 - High resolution map scopes of Europe, Asia, Africa, North America, South America and USA 
+- Integrated with all `d3.geo`
+  [projections](https://github.com/mbostock/d3/wiki/Geo-Projections)
 
 ### TODO list
 
-- Improve maps set scale + controls (almost there ...)
-
-- Add zeroline (lon/lat) attributes.
+- Improve controls (almost there ... try using `projection.invert`)
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
   provinces)
+- Add zeroline (lon/lat) attributes.
 
 ### Running it locally
 
@@ -40,7 +41,10 @@ npm install http-server -g
 
 - Open up http://localhost:8000/
 
-### Convert Natural Earth shapefiles to topojson
+### Add or modify a map scope
+
+This is done by filter and clipping Natural Earth shapefiles and converting them
+to [topojson](https://github.com/mbostock/topojson):
 
 - Install gdal (info:
   [ubuntu](http://www.sarasafavi.com/installing-gdalogr-on-ubuntu.html) ;
@@ -51,12 +55,12 @@ npm install http-server -g
 npm install
 ```
 
-- Edit `./bin/config.json` (more info to come)
-
 - Get [Natural Earth](http://www.naturalearthdata.com/downloads/) data
 ```bash
 make wget
 ```
+
+- Edit `./bin/config.json` (more info to come)
 
 - Convert shapefiles into topojson
 ```bash

@@ -10,7 +10,6 @@ shp_to_geojson:
 	node ./bin/shp_to_geojson.js
 
 geojson_to_topojson:
-	rm -rf raw/*.json
 	node ./bin/geojson_to_topojson.js
 
 sleep:

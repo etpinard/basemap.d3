@@ -1,4 +1,5 @@
-var ProgressBar = require('progress');
+var fs = require('fs'),
+    ProgressBar = require('progress');
 
 var common = module.exports = {};
 
@@ -33,4 +34,21 @@ common.makeBar = function(str, components) {
             total: getTotal()
         }
     );
+};
+
+// get list of topojsons to write
+// (to update an existing topojson, delete it first)
+common.getToposToWrite = function(config) {
+    var toposToWrite = [];
+
+    config.resolutions.forEach(function(r) {
+        config.scopes.forEach(function(s) {
+            var path = config.out_dir + common.out(r, s.name);
+            if (!fs.existsSync(path)) {
+                toposToWrite.push({r: r, s: s});
+            }
+        });
+    });
+
+    return toposToWrite;
 };

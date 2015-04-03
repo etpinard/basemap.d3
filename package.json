@@ -10,7 +10,8 @@
     "progress": "~1.1.8",
     "wget": "0.0.1",
     "topojson": "~1.6.18",
-    "geojson-utils": "~1.1.0"
+    "geojson-utils": "~1.1.0",
+    "mapshaper": "~0.2.19"
   },
   "devDependencies": {},
   "scripts": {

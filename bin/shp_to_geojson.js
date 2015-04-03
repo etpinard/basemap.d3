@@ -2,6 +2,9 @@ var fs = require('fs'),
     exec = require('child_process').exec;
 
 var common = require('./common');
+var mapshaper = "./node_modules/mapshaper/bin/mapshaper";
+
+var DEBUG = false;
 
 fs.readFile('./bin/config.json', 'utf8', main);
 
@@ -15,62 +18,110 @@ function main(err, configFile) {
         [config.resolutions, config.vectors, config.scopes]
     );
 
+
     function scopeBaseShapefile(r, s) {
         var specs = s.specs,
-            where;
+            filter,
+            cmd;
 
-        function getWhere(specs) {
+        function getFilter(specs) {
             return [
-                "-where \"", specs.key,
-                " IN ",
-                "('", specs.val, "')\""
+                "'",
+                "$.properties.",
+                specs.key,
+                " === ",
+                "\"", specs.val, "\"",
+                "'"
             ].join('');
         }
 
-        where = getWhere(specs);
-
-        return [
-            "ogr2ogr -overwrite",
-            where,
+        filter = getFilter(specs);
+        cmd = [
+            mapshaper,
+            config.wget_dir + config.src_prefix + common.bn(r, specs.src, 'shp'),
+            "encoding=utf8",
+            "-filter",
+            filter,
+            "-o",
             config.wget_dir + common.tn(r, s.name, specs.src, 'shp'),
-            config.wget_dir + config.src_prefix + common.bn(r, specs.src, 'shp')
+            "force"
        ].join(' ');
+
+       if (DEBUG) console.log(cmd);
+       return cmd;
     }
 
     function convertToGeoJSON(r, s, v, clip) {
         var specs = s.specs,
-            opt;
+            cmd;
 
-        function getOpt(r, s, v, specs) {
-            var key,
-                val;
+        // use ogr2ogr for clip around bound
+        // use mapshaper for clip around shapefile polygons
 
-            if (v.src===specs.src) {
-                key = '-where';
-                val = ["\"", specs.key, " IN ", "('", specs.val, "')\""].join('');
+        function getCmd(program, opt) {
+            var cmd,
+                expr;
+
+            if (program==='ogr2ogr') {
+
+                if (opt==='where') {
+                    expr = [
+                        '-where ',
+                        "\"", specs.key, " IN ",
+                        "('", specs.val, "')\""
+                    ].join('');
+                }
+                else if (opt==='clipsrc') {
+                    expr = [
+                        '-clipsrc ',
+                        specs.bounds.join(' ')
+                    ].join('');
+                }
+                else {
+                    expr = '';
+                }
+
+                cmd = [
+                    "ogr2ogr -f GeoJSON",
+                    expr,
+                    config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+                    config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp')
+                ].join(' ');
+
             }
-            else if (v.scopeWith==='src') {
-                key = '-clipsrc';
-                val = config.wget_dir + common.tn(r, s.name, specs.src, 'shp');
+            else if (program==='mapshaper') {
+                cmd = [
+                    mapshaper,
+                    config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp'),
+                    "encoding=utf8",
+                    "-clip",
+                    config.wget_dir + common.tn(r, s.name, specs.src, 'shp'),
+                    "-filter remove-empty",
+                    "-o",
+                    config.wget_dir + common.tn(r, s.name, v.name, 'geo.json')
+               ].join(' ');
             }
-            else if (v.scopeWith==='bounds') {
-                key = '-clipsrc';
-                val = specs.bounds.join(' ');
-            }
-            return [key, val].join(' ');
+
+            return cmd;
         }
 
         if (clip && specs && specs.src!==v.name) {
-            opt = getOpt(r, s, v, specs);
+            if (v.src===specs.src) {
+                cmd = getCmd('ogr2ogr', 'where');
+            }
+            else if (v.scopeWith==='src') {
+                cmd = getCmd('mapshaper');
+            }
+            else if (v.scopeWith==='bounds') {
+                cmd = getCmd('ogr2ogr', 'clipsrc');
+            }
         }
-        else opt = '';
+        else {
+            cmd = getCmd('ogr2ogr', false);
+        }
 
-        return [
-            "ogr2ogr -f GeoJSON",
-            opt,
-            config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
-            config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp')
-        ].join(' ');
+        if (DEBUG) console.log(cmd);
+        return cmd;
     }
 
     function vectorLoop(r, s, clip) {

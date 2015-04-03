@@ -10,29 +10,46 @@ map.PRINT = true;
 
 // -------------------------------------------------------------------------------
 
+// projection names to d3 function name
+map.PROJNAMES = {
+    // d3.geo.projection
+    'equirectangular': 'equirectangular',
+    'mercator': 'mercator',
+    'azimuthal-equal-area': 'azimuthalEqualArea',
+    'azimuthal-equidistant': 'azimuthalEquidistant',
+    'conic-equal-area': 'conicEqualArea',
+    'conic-conformal': 'conicConformal',
+    'conic-equidistant': 'conicEquidistant',
+    'gnomonic': 'gnomonic',
+    'stereographic': 'stereographic',
+    'orthographic': 'orthographic',
+    'transverse-mercator': 'transverseMercator',
+    'albers-usa': 'albersUsa',
+    // d3.geo.projection plugin
+    'kavrayskiy7': 'kavrayskiy7'
+};
+
 // max longitudinal angular span
-map.LONSPAN = {};
-map.LONSPAN.world = {
+map.LONSPAN = {
     '*': 360,
-    orthographic: 180,
-    azimuthalEqualArea: 360,
-    azimuthalEquidistant: 360,
-    gnomonic: 160,  // TODO appears to make things work; is this correct?
-    stereographic: 360
+    'orthographic': 180,
+    'azimuthal-equal-area': 360,
+    'azimuthal-equidistant': 360,
+    'gnomonic': 160,  // TODO appears to make things work; is this correct?
+    'stereographic': 360
 };
 
 // max latitudinal angular span
-map.LATSPAN = {};
-map.LATSPAN.world = {
+map.LATSPAN = {
     '*': 180,
-    conicConformal: 150  // TODO appears to make things work; is this correct?
+    'conic-conformal': 150  // TODO appears to make things work; is this correct?
 };
 
 map.DFLTLONRANGE = {
     world: [-180, 180],
     usa: [-180, -50],
     europe: [-30, 60],
-    asia: [20, 160],
+    asia: [22, 160],
     africa: [-30, 60],
     'north-america': [-180, -45],
     'south-america': [-100, -30]
@@ -114,23 +131,28 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('_topojson', scope + '_' + resolution);
 
     // TODO validate?
+    // TODO add scope-specific defautls?
     // can yield weird results when rotate[0] is outline lonaxis.range
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
-    var lonSpan = (projType in map.LONSPAN.world) ?
-            map.LONSPAN.world[projType] :
-            map.LONSPAN.world['*'];
+    var lonSpan = (projType in map.LONSPAN) ?
+            map.LONSPAN[projType] :
+            map.LONSPAN['*'];
 
-    var latSpan = (projType in map.LATSPAN.world) ?
-            map.LATSPAN.world[projType] :
-            map.LATSPAN.world['*'];
+    var latSpan = (projType in map.LATSPAN) ?
+            map.LATSPAN[projType] :
+            map.LATSPAN['*'];
 
     // TODO expose to users
     var isClipped = coerceMapNest('projection', '_isClipped',
-        (projType in map.LONSPAN.world));
+        (projType in map.LONSPAN));
 
     if (isClipped) coerceMapNest('projection', '_clipAngle',
-         map.LONSPAN.world[projType] / 2);
+         map.LONSPAN[projType] / 2);
+
+    // TODO force 'showocean': false and 'showcoastline': false
+    var isAlbersUsa = coerceMapNest('projection', '_isAlbersUsa',
+        projType==='albers-usa');
 
     // TODO implement 'rotate' or 'translate'
 //     coerce('_panmode', (scope==='world' ? 'periodic': 'fixed'));
@@ -448,7 +470,9 @@ map.setConvert = function setConvert(gd) {
         // clip regions out of the range box
         // (these are clipping along horizontal/vertical lines)
         bounds = getBounds(projection, rangeBox);
-        projection.clipExtent(bounds);
+        if (!projLayout._isAlbersUsa) {
+            projection.clipExtent(bounds);
+        }
 
         // Effective width / height of container
         gs.wEff = Math.round(bounds[1][0]);
@@ -471,11 +495,15 @@ map.makeProjection = function makeProjection(gd) {
         projType = projLayout.type,
         projection;
 
-    projection = d3.geo[projType]()
+    projection = d3.geo[map.PROJNAMES[projType]]()
         .translate(projLayout._translate)
-        .rotate(projLayout._rotate)
-        .center(projLayout._center)
         .precision(map.PRECISION);
+
+    if (!projLayout._isAlbersUsa) {
+        projection
+            .rotate(projLayout._rotate)
+            .center(projLayout._center);
+    }
 
     if (projLayout._isClipped) {
         projection.clipAngle(projLayout._clipAngle - map.CLIPPAD);
@@ -629,8 +657,10 @@ map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         gs = fullLayout._gs,
         mapLayout = fullLayout.map,
-        projLayout = mapLayout.projection,
-        isClipped = projLayout._isClipped;
+        projLayout = mapLayout.projection;
+
+    var isClipped = projLayout._isClipped,
+        isAlbersUsa = projLayout._isAlbersUsa;
 
     var svg = d3.select(gd.div).select('div.plot-div')
       .append("svg")
@@ -670,17 +700,26 @@ map.makeSVG = function makeSVG(gd) {
 
     var m0,  // variables for dragging
         o0,
-        c0;
+        c0,
+        t0;
 
     function handleZoomStart() {
-        var p = map.projection.rotate(),
-            c = map.projection.center();
+        var projection = map.projection;
+
         m0 = [
             d3.event.sourceEvent.pageX,
             d3.event.sourceEvent.pageY
         ];
-        o0 = [-p[0], -p[1]];
-        c0 = [c[0], c[1]];
+
+        if (projLayout._isAlbersUsa) {
+            t0 = projection.translate();
+        }
+        else {
+            var r = projection.rotate();
+            o0 = [-r[0], -r[1]];
+            c0 = projection.center();
+        }
+
     }
 
     function handleZoom() {
@@ -695,18 +734,14 @@ map.makeSVG = function makeSVG(gd) {
                 d3.event.sourceEvent.pageY
             ],
             dmx = Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
-            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS,
-            o1 = [
-                o0[0] + dmx,
-                o0[1] + dmy
-            ],
-            c1 = [
-                c0[0] + dmx,
-                c0[1] + dmy
-            ];
+            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS;
 
         function handleClipped() {
             // clipped projections are panned by rotation
+            var o1 = [
+                o0[0] + dmx,
+                o0[1] + dmy
+            ];
             map.projection.rotate([-o1[0], -o1[1]]);
         }
 
@@ -714,6 +749,14 @@ map.makeSVG = function makeSVG(gd) {
             // non-clipped projections are panned
             // by rotation along lon
             // and by translation along lat
+            var o1 = [
+                    o0[0] + dmx,
+                    o0[1] + dmy
+                ],
+                c1 = [
+                    c0[0] + dmx,
+                    c0[1] + dmy
+                ];
 
             map.projection.rotate([-o1[0], -o0[1]]);
 
@@ -733,7 +776,16 @@ map.makeSVG = function makeSVG(gd) {
             map.projection.center([c0[0], c1[1]]);
         }
 
+        function handleAlbersUsa() {
+            var t1 = [
+                t0[0] + (m1[0] - m0[0]),
+                t0[1] + (m1[1] - m0[1])
+            ];
+            map.projection.translate([t1[0], t1[1]]);
+        }
+
         if (isClipped) handleClipped();
+        else if (isAlbersUsa) handleAlbersUsa()
         else handleNonClipped();
 
     }
@@ -964,6 +1016,7 @@ map.drawPaths = function drawPaths() {
 
     function translatePoints(d) {
         var lonlat = projection([d.lon, d.lat]);
+        if (!lonlat) return null;
         return "translate(" + lonlat[0] + "," + lonlat[1] + ")";
     }
 

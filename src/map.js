@@ -51,7 +51,7 @@ map.DFLTLONRANGE = {
     world: [-180, 180],
     usa: [-180, -50],
     europe: [-30, 60],
-    asia: [20, 160],
+    asia: [22, 160],
     africa: [-30, 60],
     'north-america': [-180, -45],
     'south-america': [-100, -30]

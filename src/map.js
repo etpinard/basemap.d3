@@ -10,22 +10,41 @@ map.PRINT = true;
 
 // -------------------------------------------------------------------------------
 
+// projection names to d3 function name
+map.PROJNAMES = {
+    // d3.geo.projection
+    'equirectangular': 'equirectangular',
+    'mercator': 'mercator',
+    'azimuthal-equal-area': 'azimuthalEqualArea',
+    'azimuthal-equidistant': 'azimuthalEquidistant',
+    'conic-equal-area': 'conicEqualArea',
+    'conic-conformal': 'conicConformal',
+    'conic-equidistant': 'conicEquidistant',
+    'gnomonic': 'gnomonic',
+    'stereographic': 'stereographic',
+    'orthographic': 'orthographic',
+    'transverse-mercator': 'transverseMercator',
+    'albers-usa': 'albersUsa',
+    // d3.geo.projection plugin
+    'kavrayskiy7': 'kavrayskiy7'
+};
+
 // max longitudinal angular span
 map.LONSPAN = {};
 map.LONSPAN.world = {
     '*': 360,
-    orthographic: 180,
-    azimuthalEqualArea: 360,
-    azimuthalEquidistant: 360,
-    gnomonic: 160,  // TODO appears to make things work; is this correct?
-    stereographic: 360
+    'orthographic': 180,
+    'azimuthal-equal-area': 360,
+    'azimuthal-equidistant': 360,
+    'gnomonic': 160,  // TODO appears to make things work; is this correct?
+    'stereographic': 360
 };
 
 // max latitudinal angular span
 map.LATSPAN = {};
 map.LATSPAN.world = {
     '*': 180,
-    conicConformal: 150  // TODO appears to make things work; is this correct?
+    'conic-conformal': 150  // TODO appears to make things work; is this correct?
 };
 
 map.DFLTLONRANGE = {
@@ -471,7 +490,7 @@ map.makeProjection = function makeProjection(gd) {
         projType = projLayout.type,
         projection;
 
-    projection = d3.geo[projType]()
+    projection = d3.geo[map.PROJNAMES[projType]]()
         .translate(projLayout._translate)
         .rotate(projLayout._rotate)
         .center(projLayout._center)

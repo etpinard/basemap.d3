@@ -166,7 +166,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // for conic projections
     if (projType.indexOf('conic')!==-1) {
-        // same default as d3.geo.projection.parallels
+        // same default as d3.geo['projection'].parallels
         coerceMapNest('projection', 'parallels', [0, 60]);
     }
 
@@ -197,7 +197,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    // TODO frame around scope?
+    // TODO frame around lon/lat range and scope?
+    //      maybe with d3.geo.graticule.lines?
     coerceMap('showframe', scope==='world');
     coerceMap('framelinecolor', 'black');
     coerceMap('framelinewidth', 2);
@@ -485,7 +486,7 @@ map.setConvert = function setConvert(gd) {
             projection.clipExtent(bounds);
         }
 
-        // Effective width / height of container
+        // effective width / height of container
         gs.wEff = Math.round(bounds[1][0]);
         gs.hEff = Math.round(bounds[1][1]);
 
@@ -800,7 +801,7 @@ map.makeSVG = function makeSVG(gd) {
         }
 
         if (isClipped) handleClipped();
-        else if (isAlbersUsa) handleAlbersUsa()
+        else if (isAlbersUsa) handleAlbersUsa();
         else handleNonClipped();
 
     }

@@ -118,6 +118,11 @@ function main(err, configFile) {
             if (v.src===specs.src) {
                 cmd = getCmd('ogr2ogr', 'where');
             }
+            else if (s.name==='usa' && v.name==='rivers') {
+                // for 'usa' scope,
+                // clip rivers with base shp instead of bounds
+                cmd = getCmd('mapshaper');
+            }
             else if (v.scopeWith==='src') {
                 cmd = getCmd('mapshaper');
             }

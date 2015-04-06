@@ -150,7 +150,9 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     if (isClipped) coerceMapNest('projection', '_clipAngle',
          map.LONSPAN[projType] / 2);
 
-    // TODO force 'showocean': false and 'showcoastline': false
+    // TODO force 'showocean': false ,
+    //            'showcoastlines': false and even
+    //            'showgrid': false
     var isAlbersUsa = coerceMapNest('projection', '_isAlbersUsa',
         projType==='albers-usa');
 
@@ -795,7 +797,7 @@ map.makeSVG = function makeSVG(gd) {
         .scaleExtent([
             // TODO is this good enough?
             0.5 * projLayout._fullScale,
-            10 * projLayout._fullScale
+            100 * projLayout._fullScale
         ])
         .on("zoomstart", function() {
             handleZoomStart();

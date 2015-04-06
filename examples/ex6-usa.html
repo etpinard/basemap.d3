@@ -14,8 +14,8 @@ gd.data = [
     {
         type: "map-scatter",
         mode: "lines",
-        lon: [-77, 116],
-        lat: [39, 24],
+        lon: [-73.5, -118],
+        lat: [41, 33.5],
         line: {
             color: 'rgb(0, 255, 255)',
             width: 5
@@ -24,8 +24,8 @@ gd.data = [
     {
         type: "map-scatter",
         mode: "markers",
-        lon: [-75, 90, 43],
-        lat: [45, 0, -12],
+        lon: [-75, -110, -150],
+        lat: [45, 35, 65],
         marker: {
             color: 'rgb(255,0,0)',
             size: 20
@@ -46,7 +46,9 @@ gd.layout = {
         showlakes: true,
         showland: true,
 //         showcountries: true,
-        showsubunits: true
+        showsubunits: true,
+        lonaxis: { showgrid: false },
+        lataxis: { showgrid: false }
     }
 };
 

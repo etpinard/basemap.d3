@@ -116,6 +116,11 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
             axLayout.range.length===2;
     }
 
+    var autosizeDflt = false;
+    if (layout.width && !layout.height) autosizeDflt = 'height';
+    if (layout.height && !layout.width) autosizeDflt = 'width';
+    coerce('autosize', autosizeDflt);
+
     coerce('width', 700);
     coerce('height', 450);
 
@@ -161,7 +166,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
 
     // for conic projections
     if (projType.indexOf('conic')!==-1) {
-        // same default as d3.geo.projection.parallels
+        // same default as d3.geo['projection'].parallels
         coerceMapNest('projection', 'parallels', [0, 60]);
     }
 
@@ -192,7 +197,8 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('subunitslinecolor', '#aaa');
     coerceMap('subunitslinewidth', 1);
 
-    // TODO frame around scope?
+    // TODO frame around lon/lat range and scope?
+    //      maybe with d3.geo.graticule.lines?
     coerceMap('showframe', scope==='world');
     coerceMap('framelinecolor', 'black');
     coerceMap('framelinewidth', 2);
@@ -387,6 +393,7 @@ map.setConvert = function setConvert(gd) {
     // it is called from makeProjection
     map.setScale = function setScale(projection) {
         var scale0 = projection.scale(),
+            autosize = fullLayout.autosize,
             scale,
             bounds,
             fullBounds;
@@ -433,13 +440,16 @@ map.setConvert = function setConvert(gd) {
         }
 
         function getScale(bounds) {
+            function scaleFromWidth() {
+                return scale0 * lonLayout._length / (bounds[1][0] - bounds[0][0]);
+            }
+            function scaleFromHeight() {
+                 return scale0 * latLayout._length / (bounds[1][1] - bounds[0][1]);
+            }
 
-            // TODO if 'free' ... else ...
-
-            return Math.min(
-                scale0 * lonLayout._length / (bounds[1][0] - bounds[0][0]),
-                scale0 * latLayout._length / (bounds[1][1] - bounds[0][1])
-            );
+            if (autosize==='height') return scaleFromWidth();
+            else if (autosize==='width') return scaleFromHeight();
+            else return Math.min(scaleFromWidth(), scaleFromHeight());
         }
 
         var rangeBox = makeRangeBox(lon0, lat0, lon1, lat1);
@@ -476,9 +486,13 @@ map.setConvert = function setConvert(gd) {
             projection.clipExtent(bounds);
         }
 
-        // Effective width / height of container
+        // effective width / height of container
         gs.wEff = Math.round(bounds[1][0]);
         gs.hEff = Math.round(bounds[1][1]);
+
+        // copy auto-sized values to gs
+        if (autosize==='height') gs.h = gs.hEff;
+        else if (autosize==='width') gs.w = gs.wEff;
 
         // adjust scale one more time with the 'scale' attribute
         projection.scale(projLayout.scale * scale);
@@ -787,7 +801,7 @@ map.makeSVG = function makeSVG(gd) {
         }
 
         if (isClipped) handleClipped();
-        else if (isAlbersUsa) handleAlbersUsa()
+        else if (isAlbersUsa) handleAlbersUsa();
         else handleNonClipped();
 
     }

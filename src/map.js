@@ -534,6 +534,10 @@ map.makeProjection = function makeProjection(gd) {
     map.projection = projection;
 };
 
+map.makePath = function makePath() {
+    map.path = d3.geo.path().projection(map.projection);
+};
+
 map.isScatter = function(trace) {
     return (trace.type === "map-scatter");
 };
@@ -726,6 +730,7 @@ map.makeSVG = function makeSVG(gd) {
 
     var dblclick = function() {
         map.makeProjection(gd);
+        map.makePath();
         zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
         map.drawPaths();
     };
@@ -1035,8 +1040,7 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
 
 // [hot code path] (re)draw all paths which depend on map.projection
 map.drawPaths = function drawPaths() {
-    var projection = map.projection,
-        path = d3.geo.path().projection(projection);
+    var projection = map.projection;
 
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
@@ -1065,17 +1069,17 @@ map.drawPaths = function drawPaths() {
     }
 
     d3.selectAll("g.basemap path")
-        .attr("d", path);
+        .attr("d", map.path);
     d3.selectAll("g.graticule path")
-        .attr("d", path);
+        .attr("d", map.path);
 
     gData = map.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
-        .attr("d", path);
+        .attr("d", map.path);
     gData.selectAll("g.basemapoverchoropleth path")
-        .attr("d", path);
+        .attr("d", map.path);
     gData.selectAll("path.js-line")
-        .attr("d", path);
+        .attr("d", map.path);
     gData.selectAll("path.point")
         .attr("transform", translatePoints);
     gData.selectAll("text")
@@ -1204,6 +1208,7 @@ map.plot = function plot(gd) {
 
     map.setConvert(gd);
     map.makeProjection(gd);
+    map.makePath();
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 

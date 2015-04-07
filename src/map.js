@@ -671,12 +671,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
-        gs = fullLayout._gs,
-        mapLayout = fullLayout.map,
-        projLayout = mapLayout.projection;
-
-    var isClipped = projLayout._isClipped,
-        isAlbersUsa = projLayout._isAlbersUsa;
+        gs = fullLayout._gs;
 
     var svg = d3.select(gd.div).select('div.plot-div')
       .append("svg")
@@ -714,12 +709,50 @@ map.makeSVG = function makeSVG(gd) {
             .attr("stroke-width", 6);
     }
 
-    var m0,  // variables for dragging
+    // instantiate handleZoom constructor
+    var handleZoom = new map.handleZoom(),
+        fullScale = fullLayout.map.projection._fullScale;
+
+    var zoom = d3.behavior.zoom()
+        .scale(map.projection.scale())
+        .scaleExtent([
+            // TODO is this good enough?
+            0.5 * fullScale,
+            100 * fullScale
+        ])
+        .on("zoomstart", handleZoom.zoomstart)
+        .on("zoom", handleZoom.zoom)
+        .on("zoomend", handleZoom.zoomend);
+
+    var dblclick = function() {
+        map.makeProjection(gd);
+        zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
+        map.drawPaths();
+    };
+
+    // attach zoom and dblclick event to svg container
+    svg
+        .call(zoom)
+        .on("dblclick.zoom", null)  // N.B. disable dblclick zoom default
+        .on("dblclick", dblclick);
+
+   return svg;
+};
+
+map.handleZoom = function handleZoom() {
+    var fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection;
+
+    var isClipped = projLayout._isClipped,
+        isAlbersUsa = projLayout._isAlbersUsa;
+
+    var m0,
         o0,
         c0,
-        t0;
+        t0;  // variables for dragging
 
-    function handleZoomStart() {
+    this.zoomstart = function zoomstart() {
         var projection = map.projection;
 
         m0 = [
@@ -735,10 +768,12 @@ map.makeSVG = function makeSVG(gd) {
             o0 = [-r[0], -r[1]];
             c0 = projection.center();
         }
+    };
 
-    }
+    this.zoom = function zoom() {
 
-    function handleZoom() {
+        map.projection.scale(d3.event.scale);
+
         if (!m0) return;
 
         // pixel to degrees constant and minimum pixel distance
@@ -804,41 +839,20 @@ map.makeSVG = function makeSVG(gd) {
         else if (isAlbersUsa) handleAlbersUsa();
         else handleNonClipped();
 
-    }
-
-    var zoom = d3.behavior.zoom()
-        .scale(map.projection.scale())
-        .scaleExtent([
-            // TODO is this good enough?
-            0.5 * projLayout._fullScale,
-            100 * projLayout._fullScale
-        ])
-        .on("zoomstart", function() {
-            handleZoomStart();
-        })
-        .on("zoom", function() {
-            map.projection.scale(d3.event.scale);
-            handleZoom();
-            map.drawPaths();
-        })
-        .on("zoomend", function() {
-            // TODO do this on the highest resolution!
-            // map.drawPaths();
-        });
-
-    var dblclick = function() {
-        map.makeProjection(gd);
-        zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
         map.drawPaths();
+
     };
 
-    // attach zoom and dblclick event to svg container
-    svg
-        .call(zoom)
-        .on("dblclick.zoom", null)  // N.B. disable dblclick zoom default
-        .on("dblclick", dblclick);
+    this.zoomend = function zoomend() {
+        // TODO
+        //
+        // do this on the highest resolution!
+        // map.drawPaths();
+        //
+        // or something like
+        //http://www.jasondavies.com/maps/gilbert/
+    };
 
-   return svg;
 };
 
 map.init = function init(gd) {

@@ -534,6 +534,10 @@ map.makeProjection = function makeProjection(gd) {
     map.projection = projection;
 };
 
+map.makePath = function makePath() {
+    map.path = d3.geo.path().projection(map.projection);
+};
+
 map.isScatter = function(trace) {
     return (trace.type === "map-scatter");
 };
@@ -671,12 +675,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
 
 map.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
-        gs = fullLayout._gs,
-        mapLayout = fullLayout.map,
-        projLayout = mapLayout.projection;
-
-    var isClipped = projLayout._isClipped,
-        isAlbersUsa = projLayout._isAlbersUsa;
+        gs = fullLayout._gs;
 
     var svg = d3.select(gd.div).select('div.plot-div')
       .append("svg")
@@ -708,126 +707,30 @@ map.makeSVG = function makeSVG(gd) {
         svg.append("g")
             .datum(map.rangeBox)
           .append("path")
-            .attr("d", d3.geo.path().projection(map.projection))
+            .attr("d", map.path)
             .attr("fill", "none")
             .attr("stroke", "green")
             .attr("stroke-width", 6);
     }
 
-    var m0,  // variables for dragging
-        o0,
-        c0,
-        t0;
-
-    function handleZoomStart() {
-        var projection = map.projection;
-
-        m0 = [
-            d3.event.sourceEvent.pageX,
-            d3.event.sourceEvent.pageY
-        ];
-
-        if (projLayout._isAlbersUsa) {
-            t0 = projection.translate();
-        }
-        else {
-            var r = projection.rotate();
-            o0 = [-r[0], -r[1]];
-            c0 = projection.center();
-        }
-
-    }
-
-    function handleZoom() {
-        if (!m0) return;
-
-        // pixel to degrees constant and minimum pixel distance
-        var PXTODEGS = 3 * map.projection.scale() / projLayout._fullScale,
-            MINPXDIS = 10;
-
-        var m1 = [
-                d3.event.sourceEvent.pageX,
-                d3.event.sourceEvent.pageY
-            ],
-            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
-            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS;
-
-        function handleClipped() {
-            // clipped projections are panned by rotation
-            var o1 = [
-                o0[0] + dmx,
-                o0[1] + dmy
-            ];
-            map.projection.rotate([-o1[0], -o1[1]]);
-        }
-
-        function handleNonClipped() {
-            // non-clipped projections are panned
-            // by rotation along lon
-            // and by translation along lat
-            var o1 = [
-                    o0[0] + dmx,
-                    o0[1] + dmy
-                ],
-                c1 = [
-                    c0[0] + dmx,
-                    c0[1] + dmy
-                ];
-
-            map.projection.rotate([-o1[0], -o0[1]]);
-
-            // tolerance factor for panning above/below latitude range
-            var TOL = 0.75;
-
-            var latLayout = mapLayout.lataxis,
-                latRange = latLayout.range,
-                latFullRange = latLayout._fullRange,
-                cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
-                cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
-
-            // bound c[1] between [cMin, cMax]
-            if (c1[1] > cMax) c1[1] = cMax;
-            if (c1[1] < cMin) c1[1] = cMin;
-
-            map.projection.center([c0[0], c1[1]]);
-        }
-
-        function handleAlbersUsa() {
-            var t1 = [
-                t0[0] + (m1[0] - m0[0]),
-                t0[1] + (m1[1] - m0[1])
-            ];
-            map.projection.translate([t1[0], t1[1]]);
-        }
-
-        if (isClipped) handleClipped();
-        else if (isAlbersUsa) handleAlbersUsa();
-        else handleNonClipped();
-
-    }
+    // instantiate handleZoom constructor
+    var handleZoom = new map.handleZoom(),
+        fullScale = fullLayout.map.projection._fullScale;
 
     var zoom = d3.behavior.zoom()
         .scale(map.projection.scale())
         .scaleExtent([
             // TODO is this good enough?
-            0.5 * projLayout._fullScale,
-            100 * projLayout._fullScale
+            0.5 * fullScale,
+            100 * fullScale
         ])
-        .on("zoomstart", function() {
-            handleZoomStart();
-        })
-        .on("zoom", function() {
-            map.projection.scale(d3.event.scale);
-            handleZoom();
-            map.drawPaths();
-        })
-        .on("zoomend", function() {
-            // TODO do this on the highest resolution!
-            // map.drawPaths();
-        });
+        .on("zoomstart", handleZoom.zoomstart)
+        .on("zoom", handleZoom.zoom)
+        .on("zoomend", handleZoom.zoomend);
 
     var dblclick = function() {
         map.makeProjection(gd);
+        map.makePath();
         zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
         map.drawPaths();
     };
@@ -839,6 +742,111 @@ map.makeSVG = function makeSVG(gd) {
         .on("dblclick", dblclick);
 
    return svg;
+};
+
+map.handleZoom = function handleZoom() {
+    var fullLayout = gd._fullLayout,
+        mapLayout = fullLayout.map,
+        projLayout = mapLayout.projection;
+
+    var projection = map.projection;
+
+    var isClipped = projLayout._isClipped,
+        isAlbersUsa = projLayout._isAlbersUsa;
+
+    var m0,
+        r0,
+        c0,
+        t0;  // variables for dragging
+
+    this.zoomstart = function zoomstart() {
+        m0 = d3.mouse(this);
+
+        if (projLayout._isAlbersUsa) {
+            t0 = projection.translate();
+        }
+        else {
+            r0 = projection.rotate();
+            c0 = projection.center();
+        }
+    };
+
+    this.zoom = function zoom() {
+        projection.scale(d3.event.scale);
+        if (!m0) return;
+
+        // pixel to degrees constant and minimum pixel distance
+        var PXTODEGS = 3 * projection.scale() / projLayout._fullScale,
+            MINPXDIS = 10;
+
+        var m1 = d3.mouse(this);
+
+        var dm = [
+            Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
+            Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS
+        ];
+
+        function handleClipped() {
+            // clipped projections are panned by rotation
+            projection.rotate([
+                r0[0] - dm[0],
+                r0[1] - dm[1]
+            ]);
+        }
+
+        function handleNonClipped() {
+            // non-clipped projections are panned
+            // by rotation along lon
+            // and by translation along lat
+
+            // tolerance factor for panning above/below latitude range
+            var TOL = 0.75;
+
+            var c11 = c0[1] + dm[1];
+
+            var latLayout = mapLayout.lataxis,
+                latRange = latLayout.range,
+                latFullRange = latLayout._fullRange,
+                cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
+                cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
+
+            // bound c1 between [cMin, cMax]
+            if (c11 > cMax) c11 = cMax;
+            if (c11 < cMin) c11 = cMin;
+
+            projection
+                .rotate([
+                    r0[0] - dm[0],
+                    r0[1]
+                ])
+                .center([ c0[0], c11 ]);
+        }
+
+        function handleAlbersUsa() {
+            projection.translate([
+                t0[0] + (m1[0] - m0[0]),
+                t0[1] + (m1[1] - m0[1])
+            ]);
+        }
+
+        if (isClipped) handleClipped();
+        else if (isAlbersUsa) handleAlbersUsa();
+        else handleNonClipped();
+
+        map.drawPaths();
+
+    };
+
+    this.zoomend = function zoomend() {
+        // TODO
+        //
+        // do this on the highest resolution!
+        // map.drawPaths();
+        //
+        // or something like
+        //http://www.jasondavies.com/maps/gilbert/
+    };
+
 };
 
 map.init = function init(gd) {
@@ -1021,8 +1029,7 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
 
 // [hot code path] (re)draw all paths which depend on map.projection
 map.drawPaths = function drawPaths() {
-    var projection = map.projection,
-        path = d3.geo.path().projection(projection);
+    var projection = map.projection;
 
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
@@ -1051,17 +1058,17 @@ map.drawPaths = function drawPaths() {
     }
 
     d3.selectAll("g.basemap path")
-        .attr("d", path);
+        .attr("d", map.path);
     d3.selectAll("g.graticule path")
-        .attr("d", path);
+        .attr("d", map.path);
 
     gData = map.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
-        .attr("d", path);
+        .attr("d", map.path);
     gData.selectAll("g.basemapoverchoropleth path")
-        .attr("d", path);
+        .attr("d", map.path);
     gData.selectAll("path.js-line")
-        .attr("d", path);
+        .attr("d", map.path);
     gData.selectAll("path.point")
         .attr("transform", translatePoints);
     gData.selectAll("text")
@@ -1190,6 +1197,7 @@ map.plot = function plot(gd) {
 
     map.setConvert(gd);
     map.makeProjection(gd);
+    map.makePath();
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 

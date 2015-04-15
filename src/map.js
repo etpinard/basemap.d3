@@ -707,7 +707,7 @@ map.makeSVG = function makeSVG(gd) {
         svg.append("g")
             .datum(map.rangeBox)
           .append("path")
-            .attr("d", d3.geo.path().projection(map.projection))
+            .attr("d", map.path)
             .attr("fill", "none")
             .attr("stroke", "green")
             .attr("stroke-width", 6);
@@ -749,75 +749,60 @@ map.handleZoom = function handleZoom() {
         mapLayout = fullLayout.map,
         projLayout = mapLayout.projection;
 
+    var projection = map.projection;
+
     var isClipped = projLayout._isClipped,
         isAlbersUsa = projLayout._isAlbersUsa;
 
     var m0,
-        o0,
+        r0,
         c0,
         t0;  // variables for dragging
 
     this.zoomstart = function zoomstart() {
-        var projection = map.projection;
-
-        m0 = [
-            d3.event.sourceEvent.pageX,
-            d3.event.sourceEvent.pageY
-        ];
+        m0 = d3.mouse(this);
 
         if (projLayout._isAlbersUsa) {
             t0 = projection.translate();
         }
         else {
-            var r = projection.rotate();
-            o0 = [-r[0], -r[1]];
+            r0 = projection.rotate();
             c0 = projection.center();
         }
     };
 
     this.zoom = function zoom() {
-
-        map.projection.scale(d3.event.scale);
-
+        projection.scale(d3.event.scale);
         if (!m0) return;
 
         // pixel to degrees constant and minimum pixel distance
-        var PXTODEGS = 3 * map.projection.scale() / projLayout._fullScale,
+        var PXTODEGS = 3 * projection.scale() / projLayout._fullScale,
             MINPXDIS = 10;
 
-        var m1 = [
-                d3.event.sourceEvent.pageX,
-                d3.event.sourceEvent.pageY
-            ],
-            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
-            dmy = Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS;
+        var m1 = d3.mouse(this);
+
+        var dm = [
+            Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
+            Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS
+        ];
 
         function handleClipped() {
             // clipped projections are panned by rotation
-            var o1 = [
-                o0[0] + dmx,
-                o0[1] + dmy
-            ];
-            map.projection.rotate([-o1[0], -o1[1]]);
+            projection.rotate([
+                r0[0] - dm[0],
+                r0[1] - dm[1]
+            ]);
         }
 
         function handleNonClipped() {
             // non-clipped projections are panned
             // by rotation along lon
             // and by translation along lat
-            var o1 = [
-                    o0[0] + dmx,
-                    o0[1] + dmy
-                ],
-                c1 = [
-                    c0[0] + dmx,
-                    c0[1] + dmy
-                ];
-
-            map.projection.rotate([-o1[0], -o0[1]]);
 
             // tolerance factor for panning above/below latitude range
             var TOL = 0.75;
+
+            var c11 = c0[1] + dm[1];
 
             var latLayout = mapLayout.lataxis,
                 latRange = latLayout.range,
@@ -825,19 +810,23 @@ map.handleZoom = function handleZoom() {
                 cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
                 cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
 
-            // bound c[1] between [cMin, cMax]
-            if (c1[1] > cMax) c1[1] = cMax;
-            if (c1[1] < cMin) c1[1] = cMin;
+            // bound c1 between [cMin, cMax]
+            if (c11 > cMax) c11 = cMax;
+            if (c11 < cMin) c11 = cMin;
 
-            map.projection.center([c0[0], c1[1]]);
+            projection
+                .rotate([
+                    r0[0] - dm[0],
+                    r0[1]
+                ])
+                .center([ c0[0], c11 ]);
         }
 
         function handleAlbersUsa() {
-            var t1 = [
+            projection.translate([
                 t0[0] + (m1[0] - m0[0]),
                 t0[1] + (m1[1] - m0[1])
-            ];
-            map.projection.translate([t1[0], t1[1]]);
+            ]);
         }
 
         if (isClipped) handleClipped();

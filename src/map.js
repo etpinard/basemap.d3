@@ -715,9 +715,14 @@ map.makeSVG = function makeSVG(gd) {
 
     // instantiate handleZoom constructor
     var handleZoom = new map.handleZoom(),
+//     var handleZoom = new map.handleZoom0(),
+//     var handleZoom = new map.handleZoom2(),
+//     var handleZoom = new map.handleZoom3(),
+//     var handleZoom = new map.handleZoom4(),
         fullScale = fullLayout.map.projection._fullScale;
 
     var zoom = d3.behavior.zoom()
+        .translate(map.projection.translate())
         .scale(map.projection.scale())
         .scaleExtent([
             // TODO is this good enough?
@@ -725,13 +730,14 @@ map.makeSVG = function makeSVG(gd) {
             100 * fullScale
         ])
         .on("zoomstart", handleZoom.zoomstart)
-        .on("zoom", handleZoom.zoom)
-        .on("zoomend", handleZoom.zoomend);
+        .on("zoom", handleZoom.zoom);
+//         .on("zoomend", handleZoom.zoomend);
 
     var dblclick = function() {
         map.makeProjection(gd);
         map.makePath();
-        zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
+        zoom.scale(map.projection.scale());
+        zoom.translate(map.projection.translate());  // N.B. let zoom know!
         map.drawPaths();
     };
 
@@ -742,6 +748,18 @@ map.makeSVG = function makeSVG(gd) {
         .on("dblclick", dblclick);
 
    return svg;
+};
+
+map.handleZoom0 = function handleZoom0() {
+    this.zoomstart = function zoomstart() {};
+    this.zoom = function zoom() {
+        var projection = map.projection;
+
+        projection
+            .translate(d3.event.translate)
+            .scale(d3.event.scale);
+        map.drawPaths();
+    };
 };
 
 map.handleZoom = function handleZoom() {
@@ -788,8 +806,9 @@ map.handleZoom = function handleZoom() {
         var m1 = [
                 d3.event.sourceEvent.pageX,
                 d3.event.sourceEvent.pageY
-            ],
-            dmx = Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
+            ];
+
+        var dmx = Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
             dmy = Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS;
 
         function handleClipped() {
@@ -856,6 +875,207 @@ map.handleZoom = function handleZoom() {
         //
         // or something like
         //http://www.jasondavies.com/maps/gilbert/
+    };
+
+};
+
+map.handleZoom2 = function handleZoom2() {
+    // ref: https://www.jasondavies.com/maps/d3.geo.zoom.js
+
+    var radians = Math.PI / 180,
+        degrees = 180 / Math.PI;
+
+    var projection = map.projection,
+        projLayout = gd._fullLayout.map.projection;
+
+    var m0,
+        q0,
+        p0;
+
+    this.zoomstart = function zoomstart() {
+        m0 = d3.mouse(this);
+        c0 = projection.center();
+        r0 = projection.rotate();
+        q0 = quaternionFromEuler(r0);
+        p0 = position(projection, m0) || p0;
+
+    };
+
+    function getRotateAngles(projection, m1) {
+        var p1 = position(projection, m1) || p0;
+        var between = rotateBetween(p0, p1);
+        return eulerFromQuaternion(
+            q0 = between ?
+                multiply(q0, between) :
+                multiply(bank(projection, m0, m1), q0)
+        );
+    }
+
+    this.zoom = function zoom() {
+        projection.scale(d3.event.scale);
+
+        var rotateAngles = getRotateAngles(projection, d3.mouse(this));
+        projection.rotate([
+            rotateAngles[0],
+            r0[1],
+            0
+        ]);
+
+
+
+//         projection
+//             .translate([
+//                 projection.translate()[0],
+//                 d3.event.translate[1]
+//             ])
+//             .scale(d3.event.scale);
+
+
+        map.drawPaths();
+        m0 = m1;
+    };
+
+    function dot(a, b) {
+        for (var i = 0, n = a.length, s = 0; i < n; ++i) s += a[i] * b[i];
+        return s;
+    }
+
+    function cross(a, b) {
+        return [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0]
+        ];
+    }
+
+    function multiply(a, b) {
+      var a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3],
+          b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+      return [
+          a0 * b0 - a1 * b1 - a2 * b2 - a3 * b3,
+          a0 * b1 + a1 * b0 + a2 * b3 - a3 * b2,
+          a0 * b2 - a1 * b3 + a2 * b0 + a3 * b1,
+          a0 * b3 + a1 * b2 - a2 * b1 + a3 * b0
+      ];
+    }
+
+    function quaternionFromEuler(euler) {
+        var λ = 0.5 * euler[0] * radians,
+            φ = 0.5 * euler[1] * radians,
+            γ = 0.5 * euler[2] * radians,
+            sinλ = Math.sin(λ), cosλ = Math.cos(λ),
+            sinφ = Math.sin(φ), cosφ = Math.cos(φ),
+            sinγ = Math.sin(γ), cosγ = Math.cos(γ);
+        return [
+            cosλ * cosφ * cosγ + sinλ * sinφ * sinγ,
+            sinλ * cosφ * cosγ - cosλ * sinφ * sinγ,
+            cosλ * sinφ * cosγ + sinλ * cosφ * sinγ,
+            cosλ * cosφ * sinγ - sinλ * sinφ * cosγ
+        ];
+    }
+
+    function eulerFromQuaternion(q) {
+        return [
+            Math.atan2(2 * (q[0] * q[1] + q[2] * q[3]), 1 - 2 * (q[1] * q[1] + q[2] * q[2])) * degrees,
+            Math.asin(Math.max(-1, Math.min(1, 2 * (q[0] * q[2] - q[3] * q[1])))) * degrees,
+            Math.atan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] * q[2] + q[3] * q[3])) * degrees
+        ];
+    }
+
+    function cartesian(spherical) {
+        var λ = spherical[0] * radians,
+            φ = spherical[1] * radians,
+            cosφ = Math.cos(φ);
+        return [cosφ * Math.cos(λ), cosφ * Math.sin(λ), Math.sin(φ)];
+    }
+
+    function position(projection, point) {
+        var spherical = projection.invert(point);
+        return spherical && isFinite(spherical[0]) && isFinite(spherical[1]) && cartesian(spherical);
+    }
+
+    function rotateBetween(a, b) {
+        if (!a || !b) return;
+        var axis = cross(a, b),
+            norm = Math.sqrt(dot(axis, axis)),
+            halfγ = 0.5 * Math.acos(Math.max(-1, Math.min(1, dot(a, b)))),
+            k = Math.sin(halfγ) / norm;
+        return norm && [Math.cos(halfγ), axis[2] * k, -axis[1] * k, axis[0] * k];
+    }
+
+    function bank(projection, p0, p1) {
+        var t = projection.translate(),
+            angle = Math.atan2(p0[1] - t[1], p0[0] - t[0]) - Math.atan2(p1[1] - t[1], p1[0] - t[0]);
+        return [Math.cos(angle / 2), 0, 0, Math.sin(angle / 2)];
+    }
+
+};
+
+map.handleZoom3 = function handleZoom3() {
+    var projection = map.projection,
+        projLayout = gd._fullLayout.map.projection;
+
+    var m0, r0, p0;
+
+    function position(x) {
+        return projection.invert(x);
+    }
+
+
+    this.zoomstart = function zoomstart() {
+        m0 = d3.mouse(this);
+        r0 = projection.rotate();
+        p0 = position(m0);
+    };
+
+    this.zoom = function zoom() {
+        projection.scale(d3.event.scale);
+
+        var m1 = d3.mouse(this),
+            p0 = position(m0),
+            p1 = position(m1);
+
+        var dp = [
+            p1[0] - p0[0],
+            p1[1] - p0[1]
+        ];
+
+        console.log(dp[0], dp[1])
+
+        projection.rotate([
+            r0[0] + dp[0],
+            r0[1] + dp[1]
+        ]);
+
+        console.log(projection.rotate())
+
+//         m0 = m1;
+        map.drawPaths();
+
+    };
+
+};
+
+map.handleZoom4 = function handleZoom4() {
+    var projection = map.projection,
+        projLayout = gd._fullLayout.map.projection;
+
+    var m0, r0, p0;
+
+    function position(x) {
+        return projection.invert(x);
+    }
+
+    this.zoomstart = function zoomstart() {
+        m0 = d3.mouse(this);
+        r0 = projection.rotate();
+        p0 = position(m0);
+    };
+
+    this.zoom = function zoom() {
+        var m1 = d3.mouse(this);
+
+        console.log()
     };
 
 };

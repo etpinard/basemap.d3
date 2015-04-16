@@ -351,9 +351,9 @@ map.setConvert = function setConvert(gd) {
         latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
         latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
 
-    // initial translation (makes the math in setScale easier)
-    map.setTranslate = function setTranslate() {
-        projLayout._translate = [
+    // initial translation (makes the math)
+    map.setTranslate0 = function setTranslate0() {
+        projLayout._translate0 = [
             gs.l + lonLayout._length / 2,
             gs.t + latLayout._length / 2
         ];
@@ -385,7 +385,7 @@ map.setConvert = function setConvert(gd) {
     };
 
     // these don't need a projection; call them here
-    map.setTranslate();
+    map.setTranslate0();
     map.setRotate();
     map.setCenter();
 
@@ -393,8 +393,10 @@ map.setConvert = function setConvert(gd) {
     // it is called from makeProjection
     map.setScale = function setScale(projection) {
         var scale0 = projection.scale(),
+            translate0 = projLayout._translate0,
             autosize = fullLayout.autosize,
             scale,
+            translate,
             bounds,
             fullBounds;
 
@@ -474,10 +476,12 @@ map.setConvert = function setConvert(gd) {
         // translate the projection so that the top-left corner
         // of the range box is at the top-left corner of the viewbox
         bounds = getBounds(projection, rangeBox);
-        projection.translate([
-            projLayout._translate[0] - bounds[0][0],
-            projLayout._translate[1] - bounds[0][1]
-        ]);
+        translate = [
+            translate0[0] - bounds[0][0],
+            translate0[1] - bounds[0][1]
+        ];
+        projLayout._translate = translate;
+        projection.translate(translate);
 
         // clip regions out of the range box
         // (these are clipping along horizontal/vertical lines)
@@ -495,7 +499,10 @@ map.setConvert = function setConvert(gd) {
         else if (autosize==='width') gs.w = gs.wEff;
 
         // adjust scale one more time with the 'scale' attribute
-        projection.scale(projLayout.scale * scale);
+        scale = projLayout.scale * scale;
+
+        // set projection scale and save it
+        projLayout._scale = scale;
 
         // TODO add clipping along meridian/parallels option
         //      doable along meridian using projection.clipAngle!!!
@@ -509,10 +516,14 @@ map.makeProjection = function makeProjection(gd) {
         mapLayout = fullLayout.map,
         projLayout = mapLayout.projection,
         projType = projLayout.type,
+        isNew = !('projection' in map),
         projection;
 
-    projection = d3.geo[map.PROJNAMES[projType]]()
-        .translate(projLayout._translate)
+    if (isNew) projection = d3.geo[map.PROJNAMES[projType]]();
+    else projection = map.projection;
+
+    projection
+        .translate(projLayout._translate0)
         .precision(map.PRECISION);
 
     if (!projLayout._isAlbersUsa) {
@@ -522,14 +533,19 @@ map.makeProjection = function makeProjection(gd) {
     }
 
     if (projLayout._isClipped) {
-        projection.clipAngle(projLayout._clipAngle - map.CLIPPAD);
+        projection
+            .clipAngle(projLayout._clipAngle - map.CLIPPAD);
     }
 
     if (projLayout.parallels) {
-        projection.parallels(projLayout.parallels);
+        projection
+            .parallels(projLayout.parallels);
     }
 
-    map.setScale(projection);
+    if (isNew) map.setScale(projection);
+    projection
+        .translate(projLayout._translate)
+        .scale(projLayout._scale);
 
     map.projection = projection;
 };
@@ -1029,7 +1045,9 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
 
 // [hot code path] (re)draw all paths which depend on map.projection
 map.drawPaths = function drawPaths() {
-    var projection = map.projection;
+    var projection = map.projection,
+//         path = d3.geo.path().projection(projection);
+        path = map.path;
 
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
@@ -1058,17 +1076,17 @@ map.drawPaths = function drawPaths() {
     }
 
     d3.selectAll("g.basemap path")
-        .attr("d", map.path);
+        .attr("d", path);
     d3.selectAll("g.graticule path")
-        .attr("d", map.path);
+        .attr("d", path);
 
     gData = map.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
-        .attr("d", map.path);
+        .attr("d", path);
     gData.selectAll("g.basemapoverchoropleth path")
-        .attr("d", map.path);
+        .attr("d", path);
     gData.selectAll("path.js-line")
-        .attr("d", map.path);
+        .attr("d", path);
     gData.selectAll("path.point")
         .attr("transform", translatePoints);
     gData.selectAll("text")

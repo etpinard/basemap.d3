@@ -775,19 +775,28 @@ map.handleZoom = function handleZoom() {
         isScoped = mapLayout._isScoped,
         isHighRes = mapLayout._isHighRes;
 
-    var m0,
-        r0,
-        c0;  // variables for dragging
+    var mouse0, rotate0, translate0,
+        lastRotate, zoomPoint;  // variables for dragging
+
+    function position(x) {
+        return projection.invert(x);
+    }
 
     this.zoomstart = function zoomstart() {
         d3.select(this).style('cursor', 'pointer');
+
         if (isScoped) return;
-        m0 = d3.mouse(this);
-        r0 = projection.rotate();
-        c0 = projection.center();
+
+        mouse0 = d3.mouse(this);
+        rotate0 = projection.rotate();
+        lastRotate = rotate0,
+        translate0 = projection.translate();
+        zoomPoint = position(mouse0);
     };
 
     this.zoom = function zoom() {
+        var mouse1 = d3.mouse(this);
+
         projection.scale(d3.event.scale);
 
         if (isScoped) {
@@ -795,57 +804,28 @@ map.handleZoom = function handleZoom() {
             return;
         }
 
-        if (!m0) return;  // -> makes scaling happen about cursor
+        projection.translate([
+            translate0[0],
+            d3.event.translate[1]
+        ]);
 
-        // pixel to degrees constant and minimum pixel distance
-        var PXTODEGS = 3 * projection.scale() / projLayout._fullScale,
-            MINPXDIS = 10;
+        if (!zoomPoint) {
+            mouse0 = mouse1;
+            zoomPoint = position(mouse0);
+        }
+        else if (position(mouse1)) {
+            var point1 = position(mouse1);
+            var rotate1 = [
+                lastRotate[0] + (point1[0] - zoomPoint[0]),
+                rotate0[1]
+            ];
 
-        var m1 = d3.mouse(this);
-
-        var dm = [
-            Math.abs(m0[0]-m1[0]) < MINPXDIS ? 0 : (m0[0]-m1[0]) / PXTODEGS,
-            Math.abs(m1[1]-m0[1]) < MINPXDIS ? 0 : (m1[1]-m0[1]) / PXTODEGS
-        ];
-
-        function handleClipped() {
-            // clipped projections are panned by rotation
-            projection.rotate([
-                r0[0] - dm[0],
-                r0[1] - dm[1]
-            ]);
+            projection.rotate(rotate1);
+            lastRotate = rotate1;
         }
 
-        function handleNonClipped() {
-            // non-clipped projections are panned
-            // by rotation along lon
-            // and by translation along lat
-
-            // tolerance factor for panning above/below latitude range
-            var TOL = 0.75;
-
-            var c11 = c0[1] + dm[1];
-
-            var latLayout = mapLayout.lataxis,
-                latRange = latLayout.range,
-                latFullRange = latLayout._fullRange,
-                cMin = Math.min(TOL * latRange[0], TOL * latFullRange[0]),
-                cMax = Math.max(TOL * latRange[1], TOL * latFullRange[1]);
-
-            // bound c1 between [cMin, cMax]
-            if (c11 > cMax) c11 = cMax;
-            if (c11 < cMin) c11 = cMin;
-
-            projection
-                .rotate([
-                    r0[0] - dm[0],
-                    r0[1]
-                ])
-                .center([ c0[0], c11 ]);
-        }
-
-        if (isClipped) handleClipped();
-        else handleNonClipped();
+//         if (isClipped) handleClipped();
+//         else handleNonClipped();
 
         map.drawPaths();
     };

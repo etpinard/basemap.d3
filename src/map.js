@@ -804,28 +804,56 @@ map.handleZoom = function handleZoom() {
             return;
         }
 
-        projection.translate([
-            translate0[0],
-            d3.event.translate[1]
-        ]);
+        function handleClipped() {
+            if (!mouse0) return;
 
-        if (!zoomPoint) {
-            mouse0 = mouse1;
-            zoomPoint = position(mouse0);
+            // pixel to degrees constant and minimum pixel distance
+            var PXTODEGS = 3 * projection.scale() / projLayout._fullScale,
+                MINPXDIS = 10;
+
+           var dMouseInPx = [
+               Math.abs(mouse0[0] - mouse1[0]) < MINPXDIS ?
+                    0 :
+                    (mouse0[0] - mouse1[0]) / PXTODEGS,
+               Math.abs(mouse1[1] - mouse0[1]) < MINPXDIS ?
+                    0 :
+                    (mouse1[1] - mouse0[1]) / PXTODEGS
+           ];
+
+           projection.rotate([
+               rotate0[0] - dMouseInPx[0],
+               rotate0[1] - dMouseInPx[1]
+           ]);
         }
-        else if (position(mouse1)) {
-            var point1 = position(mouse1);
-            var rotate1 = [
-                lastRotate[0] + (point1[0] - zoomPoint[0]),
-                rotate0[1]
-            ];
 
-            projection.rotate(rotate1);
-            lastRotate = rotate1;
+        function handleNonClipped() {
+
+            // TODO restrict d3.event.translate
+
+            projection.translate([
+                translate0[0],
+                d3.event.translate[1]
+            ]);
+
+            if (!zoomPoint) {
+                mouse0 = mouse1;
+                zoomPoint = position(mouse0);
+            }
+            else if (position(mouse1)) {
+                var point1 = position(mouse1);
+                var rotate1 = [
+                    lastRotate[0] + (point1[0] - zoomPoint[0]),
+                    rotate0[1]
+                ];
+
+                projection.rotate(rotate1);
+                lastRotate = rotate1;
+            }
         }
 
-//         if (isClipped) handleClipped();
-//         else handleNonClipped();
+
+        if (isClipped) handleClipped();
+        else handleNonClipped();
 
         map.drawPaths();
     };

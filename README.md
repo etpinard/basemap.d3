@@ -20,7 +20,6 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
 
 ### TODO list
 
-- Improve controls (almost there ... try using `projection.invert`)
 - Add more subunits and choropleth `locmode` values (but the Natural Earth 110m
   set only includes USA states, the 50m include USA states and Canadian
   provinces)

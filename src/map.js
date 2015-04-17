@@ -805,6 +805,13 @@ map.handleZoom = function handleZoom() {
         }
 
         function handleClipped() {
+            // this algo is far from perfect.
+            // scaling occur about the center of the view
+            // (instead of about the cursor like the other algos)
+            // the map doesn't follow the cursor perfectly
+            // (unlike the other algos)
+            // for a better version:
+            // http://bl.ocks.org/alexcjohnson/bfef279fca09a6e3f8ba
             if (!mouse0) return;
 
             // pixel to degrees constant and minimum pixel distance

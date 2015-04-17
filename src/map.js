@@ -127,10 +127,11 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
 
     var scope = coerceMap('scope', 'world');
-    var isScoped = coerceMap('_isScoped', (scope!=='world'));
+    coerceMap('_isScoped', (scope!=='world'));
 
     var resolution = coerceMap('resolution',
         scope==='world' ? '110m' : '50m');
+    coerceMap('_isHighRes', (resolution==='50m'));
 
     var projType = coerceMapNest('projection', 'type', 'equirectangular');
 
@@ -771,13 +772,15 @@ map.handleZoom = function handleZoom() {
     var projection = map.projection;
 
     var isClipped = projLayout._isClipped,
-        isScoped = mapLayout._isScoped;
+        isScoped = mapLayout._isScoped,
+        isHighRes = mapLayout._isHighRes;
 
     var m0,
         r0,
         c0;  // variables for dragging
 
     this.zoomstart = function zoomstart() {
+        d3.select(this).style('cursor', 'pointer');
         if (isScoped) return;
         m0 = d3.mouse(this);
         r0 = projection.rotate();
@@ -789,7 +792,6 @@ map.handleZoom = function handleZoom() {
 
         if (isScoped) {
             projection.translate(d3.event.translate);
-            map.drawPaths();
             return;
         }
 
@@ -846,15 +848,13 @@ map.handleZoom = function handleZoom() {
         else handleNonClipped();
 
         map.drawPaths();
-
     };
 
     this.zoomend = function zoomend() {
-        // TODO
-        //
-        // do this on the highest resolution!
-        // map.drawPaths();
-        //
+        d3.select(this).style('cursor', 'auto');
+        if (!isHighRes) return;
+        map.drawPaths();
+
         // or something like
         //http://www.jasondavies.com/maps/gilbert/
     };

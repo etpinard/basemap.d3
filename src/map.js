@@ -127,6 +127,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     coerceMap('domain', {x: [0, 1], y: [0, 1]});
 
     var scope = coerceMap('scope', 'world');
+    var isScoped = coerceMap('_isScoped', (scope!=='world'));
 
     var resolution = coerceMap('resolution',
         scope==='world' ? '110m' : '50m');
@@ -734,6 +735,7 @@ map.makeSVG = function makeSVG(gd) {
         fullScale = fullLayout.map.projection._fullScale;
 
     var zoom = d3.behavior.zoom()
+        .translate(map.projection.translate())
         .scale(map.projection.scale())
         .scaleExtent([
             // TODO is this good enough?
@@ -748,6 +750,7 @@ map.makeSVG = function makeSVG(gd) {
         map.makeProjection(gd);
         map.makePath();
         zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
+        zoom.translate(map.projection.translate());
         map.drawPaths();
     };
 
@@ -768,28 +771,29 @@ map.handleZoom = function handleZoom() {
     var projection = map.projection;
 
     var isClipped = projLayout._isClipped,
-        isAlbersUsa = projLayout._isAlbersUsa;
+        isScoped = mapLayout._isScoped;
 
     var m0,
         r0,
-        c0,
-        t0;  // variables for dragging
+        c0;  // variables for dragging
 
     this.zoomstart = function zoomstart() {
+        if (isScoped) return;
         m0 = d3.mouse(this);
-
-        if (projLayout._isAlbersUsa) {
-            t0 = projection.translate();
-        }
-        else {
-            r0 = projection.rotate();
-            c0 = projection.center();
-        }
+        r0 = projection.rotate();
+        c0 = projection.center();
     };
 
     this.zoom = function zoom() {
         projection.scale(d3.event.scale);
-        if (!m0) return;
+
+        if (isScoped) {
+            projection.translate(d3.event.translate);
+            map.drawPaths();
+            return;
+        }
+
+        if (!m0) return;  // -> makes scaling happen about cursor
 
         // pixel to degrees constant and minimum pixel distance
         var PXTODEGS = 3 * projection.scale() / projLayout._fullScale,
@@ -838,15 +842,7 @@ map.handleZoom = function handleZoom() {
                 .center([ c0[0], c11 ]);
         }
 
-        function handleAlbersUsa() {
-            projection.translate([
-                t0[0] + (m1[0] - m0[0]),
-                t0[1] + (m1[1] - m0[1])
-            ]);
-        }
-
         if (isClipped) handleClipped();
-        else if (isAlbersUsa) handleAlbersUsa();
         else handleNonClipped();
 
         map.drawPaths();

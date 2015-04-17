@@ -714,10 +714,10 @@ map.makeSVG = function makeSVG(gd) {
     }
 
     // instantiate handleZoom constructor
-    var handleZoom = new map.handleZoom(),
+//     var handleZoom = new map.handleZoom(),
 //     var handleZoom = new map.handleZoom0(),
 //     var handleZoom = new map.handleZoom2(),
-//     var handleZoom = new map.handleZoom3(),
+    var handleZoom = new map.handleZoom3(),
 //     var handleZoom = new map.handleZoom4(),
         fullScale = fullLayout.map.projection._fullScale;
 
@@ -1015,45 +1015,52 @@ map.handleZoom3 = function handleZoom3() {
     var projection = map.projection,
         projLayout = gd._fullLayout.map.projection;
 
-    var m0, r0, p0;
+    var mouse0, rotate0, translate0,
+        lastRotate, zoomPoint;
 
     function position(x) {
         return projection.invert(x);
     }
 
-
     this.zoomstart = function zoomstart() {
-        m0 = d3.mouse(this);
-        r0 = projection.rotate();
-        p0 = position(m0);
+        mouse0 = d3.mouse(this);
+        rotate0 = projection.rotate();
+        lastRotate = rotate0,
+        translate0 = projection.translate();
+        zoomPoint = position(mouse0);
+        console.log('START')
     };
 
     this.zoom = function zoom() {
+            console.log(d3.event.translate[0]);
+        var mouse1 = d3.mouse(this);
+
         projection.scale(d3.event.scale);
-
-        var m1 = d3.mouse(this),
-            p0 = position(m0),
-            p1 = position(m1);
-
-        var dp = [
-            p1[0] - p0[0],
-            p1[1] - p0[1]
-        ];
-
-        console.log(dp[0], dp[1])
-
-        projection.rotate([
-            r0[0] + dp[0],
-            r0[1] + dp[1]
+        projection.translate([
+            translate0[0],
+            d3.event.translate[1]
         ]);
 
-        console.log(projection.rotate())
+        if (!zoomPoint) {
+            mouse0 = mouse1;
+            zoomPoint = position(mouse0);
+            console.log('NO ZOOM POINT')
+        }
+        else if (position(mouse1)) {
+            var point1 = position(mouse1);
 
-//         m0 = m1;
+            console.log(d3.event.translate[0]);
+
+            var rotate1 = [
+                lastRotate[0] + (point1[0] - zoomPoint[0]),
+                rotate0[1]
+            ];
+
+            projection.rotate(rotate1);
+            lastRotate = rotate1;
+        }
         map.drawPaths();
-
     };
-
 };
 
 map.handleZoom4 = function handleZoom4() {

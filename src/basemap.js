@@ -1,17 +1,17 @@
-var map = {};
+var Basemap = {};
 
 // Enable debug mode:
 // - boundary around fullLayout.width / height
 // - boundary around rangeBox polygon (used to determine projection scale)
-map.DEBUG = false;
+Basemap.DEBUG = false;
 
 // Print gd.data and gd.layout to DOM
-map.PRINT = true;
+Basemap.PRINT = true;
 
 // -------------------------------------------------------------------------------
 
 // projection names to d3 function name
-map.PROJNAMES = {
+Basemap.PROJNAMES = {
     // d3.geo.projection
     'equirectangular': 'equirectangular',
     'mercator': 'mercator',
@@ -30,7 +30,7 @@ map.PROJNAMES = {
 };
 
 // max longitudinal angular span
-map.LONSPAN = {
+Basemap.LONSPAN = {
     '*': 360,
     'orthographic': 180,
     'azimuthal-equal-area': 360,
@@ -40,12 +40,12 @@ map.LONSPAN = {
 };
 
 // max latitudinal angular span
-map.LATSPAN = {
+Basemap.LATSPAN = {
     '*': 180,
     'conic-conformal': 150  // TODO appears to make things work; is this correct?
 };
 
-map.DFLTLONRANGE = {
+Basemap.DFLTLONRANGE = {
     world: [-180, 180],
     usa: [-180, -50],
     europe: [-30, 60],
@@ -55,7 +55,7 @@ map.DFLTLONRANGE = {
     'south-america': [-100, -30]
 };
 
-map.DFLTLATRANGE = {
+Basemap.DFLTLATRANGE = {
     world: [-90, 90],
     usa: [15, 80],
     europe: [30, 80],
@@ -66,14 +66,14 @@ map.DFLTLATRANGE = {
 };
 
 // angular pad to avoid rounding error around clip angles
-map.CLIPPAD = 1e-3;
+Basemap.CLIPPAD = 1e-3;
 
 // map projection precision
-map.PRECISION = 0.1;
+Basemap.PRECISION = 0.1;
 
 // -------------------------------------------------------------------------------
 
-map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
+Basemap.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     if (!(astr in containerIn)) {
         containerOut[astr] = dflt;
     }
@@ -83,28 +83,28 @@ map.coerce = function coerce(containerIn, containerOut, astr, dflt) {
     return containerOut[astr];
 };
 
-map.coerceNest = function coerceNest(containerIn, containerOut, nest, astr, dflt) {
+Basemap.coerceNest = function coerceNest(containerIn, containerOut, nest, astr, dflt) {
     if (!(nest in containerIn)) containerIn[nest] = {};
     if (!(nest in containerOut)) containerOut[nest] = {};
-    return map.coerce(containerIn[nest], containerOut[nest], astr, dflt);
+    return Basemap.coerce(containerIn[nest], containerOut[nest], astr, dflt);
 };
 
-map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
+Basemap.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     var layout = gd.layout,
         fullLayout = {},
         mapLayout = layout.map,
         mapFullLayout = {};
 
     function coerce(astr, dflt) {
-        return map.coerce(layout, fullLayout, astr, dflt);
+        return Basemap.coerce(layout, fullLayout, astr, dflt);
     }
 
     function coerceMap(astr, dflt) {
-        return map.coerce(mapLayout, mapFullLayout, astr, dflt);
+        return Basemap.coerce(mapLayout, mapFullLayout, astr, dflt);
     }
 
     function coerceMapNest(nest, astr, dflt) {
-        return map.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
+        return Basemap.coerceNest(mapLayout, mapFullLayout, nest, astr, dflt);
     }
 
     function isValidRange(layout, ax) {
@@ -142,20 +142,20 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     // can yield weird results when rotate[0] is outline lonaxis.range
     var rotate = coerceMapNest('projection', 'rotate', [0, 0]);
 
-    var lonSpan = (projType in map.LONSPAN) ?
-            map.LONSPAN[projType] :
-            map.LONSPAN['*'];
+    var lonSpan = (projType in Basemap.LONSPAN) ?
+            Basemap.LONSPAN[projType] :
+            Basemap.LONSPAN['*'];
 
-    var latSpan = (projType in map.LATSPAN) ?
-            map.LATSPAN[projType] :
-            map.LATSPAN['*'];
+    var latSpan = (projType in Basemap.LATSPAN) ?
+            Basemap.LATSPAN[projType] :
+            Basemap.LATSPAN['*'];
 
     // TODO expose to users
     var isClipped = coerceMapNest('projection', '_isClipped',
-        (projType in map.LONSPAN));
+        (projType in Basemap.LONSPAN));
 
     if (isClipped) coerceMapNest('projection', '_clipAngle',
-         map.LONSPAN[projType] / 2);
+         Basemap.LONSPAN[projType] / 2);
 
     // TODO force 'showocean': false ,
     //            'showcoastlines': false and even
@@ -219,7 +219,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     fullRange = coerceMapNest('lonaxis', '_fullRange',
         scope==='world' ?
             [rotate[0] - halfSpan, rotate[0] + halfSpan] :
-            map.DFLTLONRANGE[scope]);
+            Basemap.DFLTLONRANGE[scope]);
 
     var lonRange = coerceMapNest('lonaxis', 'range', fullRange);
 
@@ -237,7 +237,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     fullRange = coerceMapNest('lataxis', '_fullRange',
         scope==='world' ?
             [rotate[1] - halfSpan, rotate[1] + halfSpan] :
-            map.DFLTLATRANGE[scope]);
+            Basemap.DFLTLATRANGE[scope]);
 
     var latRange = coerceMapNest('lataxis', 'range', fullRange);
 
@@ -253,7 +253,7 @@ map.supplyLayoutDefaults = function supplyLayoutDefaults(gd) {
     gd._fullLayout = fullLayout;
 };
 
-map.supplyDefaults = function supplyDefaults(gd) {
+Basemap.supplyDefaults = function supplyDefaults(gd) {
     var data = gd.data,
         fullLayout = gd.fullLayout,
         Ntrace = data.length,
@@ -264,15 +264,15 @@ map.supplyDefaults = function supplyDefaults(gd) {
         fullMarker;
 
     function coerce(astr, dflt) {
-        return map.coerce(trace, fullTrace, astr, dflt);
+        return Basemap.coerce(trace, fullTrace, astr, dflt);
     }
 
     function coerceNest(nest, astr, dflt) {
-        return map.coerceNest(trace, fullTrace, nest, astr, dflt);
+        return Basemap.coerceNest(trace, fullTrace, nest, astr, dflt);
     }
 
     function coerceMarkerNest(nest, astr, dflt) {
-        return map.coerceNest(trace.marker, fullTrace.marker, nest, astr, dflt);
+        return Basemap.coerceNest(trace.marker, fullTrace.marker, nest, astr, dflt);
     }
 
     for (var i = 0; i < Ntrace; i++) {
@@ -307,14 +307,14 @@ map.supplyDefaults = function supplyDefaults(gd) {
     gd._fullData = fullData;
 };
 
-map.doAutoRange = function doAutoRange(gd) {
+Basemap.doAutoRange = function doAutoRange(gd) {
 
     // TODO
     // based on data!
 
 };
 
-map.setConvert = function setConvert(gd) {
+Basemap.setConvert = function setConvert(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
         projLayout = mapLayout.projection,
@@ -343,18 +343,18 @@ map.setConvert = function setConvert(gd) {
     latLayout._offset = gs.t + (1 - mapDomain.y[1]) * gs.h;
 
     // add padding around range to avoid aliasing
-    var lon0 = lonLayout.range[0] + map.CLIPPAD,
-        lon1 = lonLayout.range[1] - map.CLIPPAD,
-        lat0 = latLayout.range[0] + map.CLIPPAD,
-        lat1 = latLayout.range[1] - map.CLIPPAD;
+    var lon0 = lonLayout.range[0] + Basemap.CLIPPAD,
+        lon1 = lonLayout.range[1] - Basemap.CLIPPAD,
+        lat0 = latLayout.range[0] + Basemap.CLIPPAD,
+        lat1 = latLayout.range[1] - Basemap.CLIPPAD;
 
-    var lonfull0 = lonLayout._fullRange[0] + map.CLIPPAD,
-        lonfull1 = lonLayout._fullRange[1] - map.CLIPPAD,
-        latfull0 = latLayout._fullRange[0] + map.CLIPPAD,
-        latfull1 = latLayout._fullRange[1] - map.CLIPPAD;
+    var lonfull0 = lonLayout._fullRange[0] + Basemap.CLIPPAD,
+        lonfull1 = lonLayout._fullRange[1] - Basemap.CLIPPAD,
+        latfull0 = latLayout._fullRange[0] + Basemap.CLIPPAD,
+        latfull1 = latLayout._fullRange[1] - Basemap.CLIPPAD;
 
     // initial translation (makes the math)
-    map.setTranslate0 = function setTranslate0() {
+    Basemap.setTranslate0 = function setTranslate0() {
         projLayout._translate0 = [
             gs.l + lonLayout._length / 2,
             gs.t + latLayout._length / 2
@@ -362,7 +362,7 @@ map.setConvert = function setConvert(gd) {
     };
 
     // is this more intuitive?
-    map.setRotate = function setRotate() {
+    Basemap.setRotate = function setRotate() {
         var rotate = projLayout.rotate;
         projLayout._rotate = [
             -rotate[0],
@@ -372,7 +372,7 @@ map.setConvert = function setConvert(gd) {
 
     // center of the projection is given by
     // the lon/lat ranges and the rotate angle
-    map.setCenter = function setCenter() {
+    Basemap.setCenter = function setCenter() {
         var dlon = lon1 - lon0,
             dlat = lat1 - lat0,
             c0 = [
@@ -387,13 +387,13 @@ map.setConvert = function setConvert(gd) {
     };
 
     // these don't need a projection; call them here
-    map.setTranslate0();
-    map.setRotate();
-    map.setCenter();
+    Basemap.setTranslate0();
+    Basemap.setRotate();
+    Basemap.setCenter();
 
     // setScale needs a initial projection;
     // it is called from makeProjection
-    map.setScale = function setScale(projection) {
+    Basemap.setScale = function setScale(projection) {
         var scale0 = projection.scale(),
             translate0 = projLayout._translate0,
             autosize = fullLayout.autosize,
@@ -459,9 +459,9 @@ map.setConvert = function setConvert(gd) {
         var rangeBox = makeRangeBox(lon0, lat0, lon1, lat1);
             fullRangeBox = makeRangeBox(lonfull0, latfull0, lonfull1, latfull1);
 
-        if (map.DEBUG) {
-            map.rangeBox = rangeBox;
-            map.fullRangeBox = fullRangeBox;
+        if (Basemap.DEBUG) {
+            Basemap.rangeBox = rangeBox;
+            Basemap.fullRangeBox = fullRangeBox;
         }
 
         // scale projection given how range box get deformed
@@ -513,20 +513,20 @@ map.setConvert = function setConvert(gd) {
 
 };
 
-map.makeProjection = function makeProjection(gd) {
+Basemap.makeProjection = function makeProjection(gd) {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
         projLayout = mapLayout.projection,
         projType = projLayout.type,
-        isNew = !('projection' in map),
+        isNew = !('projection' in Basemap),
         projection;
 
-    if (isNew) projection = d3.geo[map.PROJNAMES[projType]]();
-    else projection = map.projection;
+    if (isNew) projection = d3.geo[Basemap.PROJNAMES[projType]]();
+    else projection = Basemap.projection;
 
     projection
         .translate(projLayout._translate0)
-        .precision(map.PRECISION);
+        .precision(Basemap.PRECISION);
 
     if (!projLayout._isAlbersUsa) {
         projection
@@ -536,7 +536,7 @@ map.makeProjection = function makeProjection(gd) {
 
     if (projLayout._isClipped) {
         projection
-            .clipAngle(projLayout._clipAngle - map.CLIPPAD);
+            .clipAngle(projLayout._clipAngle - Basemap.CLIPPAD);
     }
 
     if (projLayout.parallels) {
@@ -544,39 +544,39 @@ map.makeProjection = function makeProjection(gd) {
             .parallels(projLayout.parallels);
     }
 
-    if (isNew) map.setScale(projection);
+    if (isNew) Basemap.setScale(projection);
     projection
         .translate(projLayout._translate)
         .scale(projLayout._scale);
 
-    map.projection = projection;
+    Basemap.projection = projection;
 };
 
-map.makePath = function makePath() {
-    map.path = d3.geo.path().projection(map.projection);
+Basemap.makePath = function makePath() {
+    Basemap.path = d3.geo.path().projection(Basemap.projection);
 };
 
-map.isScatter = function(trace) {
+Basemap.isScatter = function(trace) {
     return (trace.type === "map-scatter");
 };
 
-map.isChoropleth = function(trace) {
+Basemap.isChoropleth = function(trace) {
     return (trace.type === "choropleth");
 };
 
-map.hasScatterMarkers = function(trace) {
+Basemap.hasScatterMarkers = function(trace) {
     return (trace.type === "map-scatter" && trace.mode.indexOf('markers')!==-1);
 };
 
-map.hasScatterLines = function(trace) {
+Basemap.hasScatterLines = function(trace) {
     return (trace.type === "map-scatter" && trace.mode.indexOf('lines')!==-1);
 };
 
-map.hasScatterText = function(trace) {
+Basemap.hasScatterText = function(trace) {
     return (trace.type === "map-scatter" && trace.mode.indexOf('text')!==-1);
 };
 
-map.makeCalcdata = function makeCalcdata(gd) {
+Basemap.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
         cd = new Array(fullData.length),
         cdi;
@@ -586,7 +586,7 @@ map.makeCalcdata = function makeCalcdata(gd) {
     }
 
     function getFromGeoJSON(trace) {
-        var topo = map.topo,
+        var topo = Basemap.topo,
             locmodeToLayer = {
                 "ISO-3": "countries",
                 "USA-states": "subunits"
@@ -680,8 +680,8 @@ map.makeCalcdata = function makeCalcdata(gd) {
     for (var i = 0; i < fullData.length; i++) {
         trace = fullData[i];
 
-        if (map.isScatter(trace)) cdi = calcScatter(trace);
-        if (map.isChoropleth(trace)) cdi = calcChoropleth(trace);
+        if (Basemap.isScatter(trace)) cdi = calcScatter(trace);
+        if (Basemap.isChoropleth(trace)) cdi = calcChoropleth(trace);
 
         cdi[0].trace = trace;
         cd[i] = cdi;
@@ -691,14 +691,14 @@ map.makeCalcdata = function makeCalcdata(gd) {
     return gd;
 };
 
-map.makeSVG = function makeSVG(gd) {
+Basemap.makeSVG = function makeSVG(gd) {
     var fullLayout = gd._fullLayout,
         gs = fullLayout._gs;
 
     var svg = d3.select(gd.div).select('div.plot-div')
       .append("svg")
-        .attr("width", (map.DEBUG && gs.w > gs.wEff) ? gs.w : gs.wEff)
-        .attr("height", (map.DEBUG && gs.h > gs.hEff) ? gs.h : gs.hEff);
+        .attr("width", (Basemap.DEBUG && gs.w > gs.wEff) ? gs.w : gs.wEff)
+        .attr("height", (Basemap.DEBUG && gs.h > gs.hEff) ? gs.h : gs.hEff);
 
     svg.append("g")
         .classed("basemap", true);
@@ -712,7 +712,7 @@ map.makeSVG = function makeSVG(gd) {
         .classed("data", true);
 
     // [DEBUG] rectangle around svg container
-    if (map.DEBUG) {
+    if (Basemap.DEBUG) {
         svg.append("rect")
             .attr("x", 0)
             .attr("y", 0)
@@ -723,21 +723,21 @@ map.makeSVG = function makeSVG(gd) {
             .attr("stroke-width", 6);
 
         svg.append("g")
-            .datum(map.rangeBox)
+            .datum(Basemap.rangeBox)
           .append("path")
-            .attr("d", map.path)
+            .attr("d", Basemap.path)
             .attr("fill", "none")
             .attr("stroke", "green")
             .attr("stroke-width", 6);
     }
 
     // instantiate handleZoom constructor
-    var handleZoom = new map.handleZoom(),
+    var handleZoom = new Basemap.handleZoom(),
         fullScale = fullLayout.map.projection._fullScale;
 
     var zoom = d3.behavior.zoom()
-        .translate(map.projection.translate())
-        .scale(map.projection.scale())
+        .translate(Basemap.projection.translate())
+        .scale(Basemap.projection.scale())
         .scaleExtent([
             // TODO is this good enough?
             0.5 * fullScale,
@@ -748,11 +748,11 @@ map.makeSVG = function makeSVG(gd) {
         .on("zoomend", handleZoom.zoomend);
 
     var dblclick = function() {
-        map.makeProjection(gd);
-        map.makePath();
-        zoom.scale(map.projection.scale());  // N.B. let the zoom event know!
-        zoom.translate(map.projection.translate());
-        map.drawPaths();
+        Basemap.makeProjection(gd);
+        Basemap.makePath();
+        zoom.scale(Basemap.projection.scale());  // N.B. let the zoom event know!
+        zoom.translate(Basemap.projection.translate());
+        Basemap.drawPaths();
     };
 
     // attach zoom and dblclick event to svg container
@@ -764,19 +764,22 @@ map.makeSVG = function makeSVG(gd) {
    return svg;
 };
 
-map.handleZoom = function handleZoom() {
+Basemap.handleZoom = function handleZoom() {
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
         projLayout = mapLayout.projection;
 
-    var projection = map.projection;
+    var projection = Basemap.projection;
 
     var isClipped = projLayout._isClipped,
         isScoped = mapLayout._isScoped,
         isHighRes = mapLayout._isHighRes;
 
-    var mouse0, rotate0, translate0,
-        lastRotate, zoomPoint;  // variables for dragging
+    var mouse0,
+        rotate0,
+        translate0,
+        lastRotate,
+        zoomPoint;
 
     function position(x) {
         return projection.invert(x);
@@ -789,8 +792,8 @@ map.handleZoom = function handleZoom() {
 
         mouse0 = d3.mouse(this);
         rotate0 = projection.rotate();
-        lastRotate = rotate0,
         translate0 = projection.translate();
+        lastRotate = rotate0;
         zoomPoint = position(mouse0);
     };
 
@@ -835,8 +838,7 @@ map.handleZoom = function handleZoom() {
 
         function handleNonClipped() {
 
-            // TODO restrict d3.event.translate
-
+            // TODO restrict d3.event.translate - how?
             projection.translate([
                 translate0[0],
                 d3.event.translate[1]
@@ -862,13 +864,13 @@ map.handleZoom = function handleZoom() {
         if (isClipped) handleClipped();
         else handleNonClipped();
 
-        map.drawPaths();
+        Basemap.drawPaths();
     };
 
     this.zoomend = function zoomend() {
         d3.select(this).style('cursor', 'auto');
         if (!isHighRes) return;
-        map.drawPaths();
+        Basemap.drawPaths();
 
         // or something like
         //http://www.jasondavies.com/maps/gilbert/
@@ -876,8 +878,8 @@ map.handleZoom = function handleZoom() {
 
 };
 
-map.init = function init(gd) {
-    var topo = map.topo,
+Basemap.init = function init(gd) {
+    var topo = Basemap.topo,
         cd = gd.calcdata,
         fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
@@ -889,15 +891,15 @@ map.init = function init(gd) {
         hasChoropleth = false,
         i;
 
-    map.fillLayers = ['ocean', 'land', 'lakes'];
-    map.lineLayers = ['subunits', 'countries',
+    Basemap.fillLayers = ['ocean', 'land', 'lakes'];
+    Basemap.lineLayers = ['subunits', 'countries',
                       'coastlines', 'rivers', 'frame'];
 
-    map.baselayers = map.fillLayers.concat(map.lineLayers);
-    map.baselayersOverChoropleth = ['rivers', 'lakes'];
+    Basemap.baselayers = Basemap.fillLayers.concat(Basemap.lineLayers);
+    Basemap.baselayersOverChoropleth = ['rivers', 'lakes'];
 
     // make SVG layers and attach events
-    map.svg = map.makeSVG(gd);
+    Basemap.svg = Basemap.makeSVG(gd);
 
     function plotBaseLayer(s, layer) {
         var datum;
@@ -916,9 +918,9 @@ map.init = function init(gd) {
     }
 
     // baselayers
-    gBasemap = map.svg.select("g.basemap");
-    for (i = 0;  i < map.baselayers.length; i++) {
-        plotBaseLayer(gBasemap, map.baselayers[i]);
+    gBasemap = Basemap.svg.select("g.basemap");
+    for (i = 0;  i < Basemap.baselayers.length; i++) {
+        plotBaseLayer(gBasemap, Basemap.baselayers[i]);
     }
 
     function plotGraticules(s) {
@@ -929,8 +931,8 @@ map.init = function init(gd) {
 
         function makeGraticule(step) {
             var scope = mapLayout.scope,
-                lonRange = map.DFLTLONRANGE[scope],
-                latRange = map.DFLTLATRANGE[scope];
+                lonRange = Basemap.DFLTLONRANGE[scope],
+                latRange = Basemap.DFLTLATRANGE[scope];
             return d3.geo.graticule()
                 .extent([
                     [lonRange[0], latRange[0]],
@@ -957,11 +959,11 @@ map.init = function init(gd) {
     }
 
     // graticule layers - should these be over choropleth?
-    gGraticule = map.svg.select("g.graticule");
+    gGraticule = Basemap.svg.select("g.graticule");
     plotGraticules(gGraticule);
 
     // bind calcdata to SVG
-    gData = map.svg.select("g.data")
+    gData = Basemap.svg.select("g.data")
         .selectAll("g.trace")
         .data(cd)
       .enter().append("g")
@@ -974,7 +976,7 @@ map.init = function init(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            if (!map.isChoropleth(trace)) s.remove();
+            if (!Basemap.isChoropleth(trace)) s.remove();
             else {
                 hasChoropleth = true;
                 s.selectAll("path.choroplethloc")
@@ -988,12 +990,12 @@ map.init = function init(gd) {
     if (hasChoropleth) {
         gBasemapOverChoropleth = gChoropleth.append("g")
             .attr("class", "basemapoverchoropleth");
-        for (i = 0;  i < map.baselayersOverChoropleth.length; i++) {
+        for (i = 0;  i < Basemap.baselayersOverChoropleth.length; i++) {
             // delete existing baselayer
-            gBasemap.select("." + map.baselayersOverChoropleth[i]).remove();
+            gBasemap.select("." + Basemap.baselayersOverChoropleth[i]).remove();
             // embed new baselayer into trace element
             plotBaseLayer(gBasemapOverChoropleth,
-                          map.baselayersOverChoropleth[i]);
+                          Basemap.baselayersOverChoropleth[i]);
         }
     }
 
@@ -1003,9 +1005,9 @@ map.init = function init(gd) {
             var s = d3.select(this),
                 trace = d[0].trace;
 
-            if (!map.hasScatterLines(trace)) s.remove();
+            if (!Basemap.hasScatterLines(trace)) s.remove();
             else {
-                s.datum(map.makeLineGeoJSON(d))
+                s.datum(Basemap.makeLineGeoJSON(d))
                  .attr("class", "js-line");
             }
         });
@@ -1016,8 +1018,8 @@ map.init = function init(gd) {
         .each(function(d) {
             var s = d3.select(this),
                 trace = d[0].trace,
-                showMarkers = map.hasScatterMarkers(trace),
-                showText = map.hasScatterText(trace);
+                showMarkers = Basemap.hasScatterMarkers(trace),
+                showText = Basemap.hasScatterText(trace);
 
             if (!showMarkers && !showText) s.remove();
             else {
@@ -1036,10 +1038,10 @@ map.init = function init(gd) {
             }
         });
 
-    map.drawPaths();  // draw the paths for the first time
+    Basemap.drawPaths();  // draw the paths for the first time
 };
 
-map.makeLineGeoJSON = function makeLineGeoJSON(d) {
+Basemap.makeLineGeoJSON = function makeLineGeoJSON(d) {
     var N =  d.length,
         coordinates = new Array(N),
         di;
@@ -1054,11 +1056,10 @@ map.makeLineGeoJSON = function makeLineGeoJSON(d) {
     };
 };
 
-// [hot code path] (re)draw all paths which depend on map.projection
-map.drawPaths = function drawPaths() {
-    var projection = map.projection,
-//         path = d3.geo.path().projection(projection);
-        path = map.path;
+// [hot code path] (re)draw all paths which depend on Basemap.projection
+Basemap.drawPaths = function drawPaths() {
+    var projection = Basemap.projection,
+        path = Basemap.path;
 
     var fullLayout = gd._fullLayout,
         mapLayout = fullLayout.map,
@@ -1091,7 +1092,7 @@ map.drawPaths = function drawPaths() {
     d3.selectAll("g.graticule path")
         .attr("d", path);
 
-    gData = map.svg.select("g.data");
+    gData = Basemap.svg.select("g.data");
     gData.selectAll("path.choroplethloc")
         .attr("d", path);
     gData.selectAll("g.basemapoverchoropleth path")
@@ -1104,7 +1105,7 @@ map.drawPaths = function drawPaths() {
         .attr("transform", translatePoints);
 };
 
-map.pointStyle = function pointStyle(s, trace) {
+Basemap.pointStyle = function pointStyle(s, trace) {
     var marker = trace.marker,
         symbols = {
             circle: function(r) {
@@ -1133,7 +1134,7 @@ map.pointStyle = function pointStyle(s, trace) {
 
 };
 
-map.lineStyle = function lineStyle(s) {
+Basemap.lineStyle = function lineStyle(s) {
     s.style('fill', 'none')
         .each(function(d) {
             var line = d.trace.line;
@@ -1143,7 +1144,7 @@ map.lineStyle = function lineStyle(s) {
         });
 };
 
-map.textPointStyle = function textPointStyle(s, trace) {
+Basemap.textPointStyle = function textPointStyle(s, trace) {
     s.each(function(d) {
         d3.select(this)
             .style('font-size', '14px')
@@ -1152,16 +1153,16 @@ map.textPointStyle = function textPointStyle(s, trace) {
     });
 };
 
-map.style = function style(gd) {
+Basemap.style = function style(gd) {
     var mapLayout = gd._fullLayout.map;
 
-    map.fillLayers.forEach(function(layer){
+    Basemap.fillLayers.forEach(function(layer){
         d3.select("path." + layer)
             .attr("stroke", "none")
             .attr("fill", mapLayout[layer + 'fillcolor']);
     });
 
-    map.lineLayers.forEach(function(layer){
+    Basemap.lineLayers.forEach(function(layer){
         var s = d3.select("path." + layer);
 
         // coastline is an exception
@@ -1205,40 +1206,40 @@ map.style = function style(gd) {
         });
 
     d3.selectAll("g.trace path.js-line")
-        .call(map.lineStyle);
+        .call(Basemap.lineStyle);
 
     d3.selectAll("g.points")
         .each(function(d) {
             d3.select(this).selectAll("path.point")
-                .call(map.pointStyle, d.trace || d[0].trace);
+                .call(Basemap.pointStyle, d.trace || d[0].trace);
             d3.select(this).selectAll("text")
-                .call(map.textPointStyle, d.trace || d[0].trace);
+                .call(Basemap.textPointStyle, d.trace || d[0].trace);
         });
 };
 
-map.plot = function plot(gd) {
+Basemap.plot = function plot(gd) {
 
     gd.div = Print.init();
 
-    map.supplyLayoutDefaults(gd);
-    map.supplyDefaults(gd);
-    map.doAutoRange(gd);
+    Basemap.supplyLayoutDefaults(gd);
+    Basemap.supplyDefaults(gd);
+    Basemap.doAutoRange(gd);
 
-    map.setConvert(gd);
-    map.makeProjection(gd);
-    map.makePath();
+    Basemap.setConvert(gd);
+    Basemap.makeProjection(gd);
+    Basemap.makePath();
 
     var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
 
     d3.json(topojsonPath, function(error, topo) {
 
-        map.topo = topo;
-        map.makeCalcdata(gd);
+        Basemap.topo = topo;
+        Basemap.makeCalcdata(gd);
 
-        map.init(gd);
-        map.style(gd);
+        Basemap.init(gd);
+        Basemap.style(gd);
 
-        if (map.PRINT) Print.printToDOM(gd);
+        if (Basemap.PRINT) Print.printToDOM(gd);
         else Print.removeCodeDiv(gd);
 
     });

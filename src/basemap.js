@@ -775,8 +775,11 @@ Basemap.handleZoom = function handleZoom() {
         isScoped = mapLayout._isScoped,
         isHighRes = mapLayout._isHighRes;
 
-    var mouse0, rotate0, translate0,
-        lastRotate, zoomPoint;  // variables for dragging
+    var mouse0,
+        rotate0,
+        translate0,
+        lastRotate,
+        zoomPoint;
 
     function position(x) {
         return projection.invert(x);
@@ -789,8 +792,8 @@ Basemap.handleZoom = function handleZoom() {
 
         mouse0 = d3.mouse(this);
         rotate0 = projection.rotate();
-        lastRotate = rotate0,
         translate0 = projection.translate();
+        lastRotate = rotate0;
         zoomPoint = position(mouse0);
     };
 
@@ -835,8 +838,7 @@ Basemap.handleZoom = function handleZoom() {
 
         function handleNonClipped() {
 
-            // TODO restrict d3.event.translate
-
+            // TODO restrict d3.event.translate - how?
             projection.translate([
                 translate0[0],
                 d3.event.translate[1]

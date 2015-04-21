@@ -24,6 +24,7 @@ See examples at [etpinard.github.io/basemap.d3/](http://etpinard.github.io/basem
   set only includes USA states, the 50m include USA states and Canadian
   provinces)
 - Add zeroline (lon/lat) attributes.
+- Add a conic-specific zoom handler
 
 ### Running it locally
 

@@ -17,10 +17,7 @@ function main(err, configFile) {
         [toposToWrite]
     );
 
-    // map all geojson properties to topojson
-    function propertyTransform(feature) {
-        return feature.properties;
-    }
+    function propertyTransform(feature) { return feature.properties; }
 
     toposToWrite.forEach(function(topo) {
         var r = topo.r,
@@ -49,6 +46,8 @@ function main(err, configFile) {
             'verbose': true,
             'property-transform': propertyTransform
          });
+
+        pruneProperties(topology);
 
         var outPath = config.topojson_dir + common.out(r, s.name);
 
@@ -117,4 +116,14 @@ function formatProperties(collection, v) {
             delete feature.properties;
          }
     }
+}
+
+function pruneProperties(topology) {
+    var objects = topology.objects;
+
+    Object.keys(objects).forEach(function(objectName) {
+        objects[objectName].geometries.forEach(function(geometry) {
+            delete geometry.properties;
+        });
+    });
 }

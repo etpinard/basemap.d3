@@ -15,5 +15,8 @@ geojson_to_topojson:
 sleep:
 	@sleep 3
 
+reset:
+	rm -f raw/*.json
+
 clean:
 	rm -rf raw/natural_earth

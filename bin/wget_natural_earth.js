@@ -7,11 +7,11 @@ var common = require('./common');
 fs.readFile('./bin/config.json', 'utf8', main);
 
 function main(err, configFile) {
-    if (err) throw err;
+    if(err) throw err;
 
     var config = JSON.parse(configFile);
 
-    if (!fs.existsSync(config.wget_dir)) fs.mkdirSync(config.wget_dir);
+    if(!fs.existsSync(config.wget_dir)) fs.mkdirSync(config.wget_dir);
 
     var bar = common.makeBar(
         'Downloading shapefiles: [:bar] :current/:total',

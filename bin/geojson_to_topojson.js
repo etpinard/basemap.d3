@@ -7,7 +7,7 @@ var common = require('./common');
 fs.readFile('./bin/config.json', 'utf8', main);
 
 function main(err, configFile) {
-    if (err) throw err;
+    if(err) throw err;
 
     var config = JSON.parse(configFile);
     var toposToWrite = common.getToposToWrite(config);
@@ -53,7 +53,7 @@ function main(err, configFile) {
         var outPath = config.out_dir + common.out(r, s.name);
 
         fs.writeFile(outPath, JSON.stringify(topology), function(err){
-            if (!err) barWrite.tick();
+            if(!err) barWrite.tick();
         });
 
     });
@@ -73,7 +73,7 @@ function formatProperties(collection, v) {
             return gju.centroid(polygon).coordinates;
         }
 
-        if (geometry.type==='MultiPolygon') {
+        if(geometry.type==='MultiPolygon') {
             var coordinates = geometry.coordinates,
                 N = coordinates.length,
                 centroids = new Array(N),
@@ -85,9 +85,9 @@ function formatProperties(collection, v) {
             // pick the one associated with the
             // largest area.
 
-            for (var i = 0; i < N; i++) {
+            for(var i = 0; i < N; i++) {
                 polygon = {
-                    type: "Polygon",
+                    type: 'Polygon',
                     coordinates: coordinates[i]
                 };
                 centroids[i] = getOne(polygon);
@@ -98,16 +98,16 @@ function formatProperties(collection, v) {
             indexOfMax = areas.indexOf(Math.min.apply(Math, areas));
             return centroids[indexOfMax];
         }
-        else if (geometry.type==='Polygon') {
+        else if(geometry.type==='Polygon') {
             return getOne(geometry);
         }
         else return;
     }
 
-    for (var i = 0; i < N; i++) {
+    for(var i = 0; i < N; i++) {
         feature = features[i];
 
-         if (v.ids) {
+         if(v.ids) {
             // TODO generalize for ids.length > 1
             // TODO handle -99 ids
             id = feature.properties[v.ids];

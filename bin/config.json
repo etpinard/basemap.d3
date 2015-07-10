@@ -1,6 +1,7 @@
 {
-    "out_dir": "./raw/",
     "wget_dir": "./raw/natural_earth/",
+    "geojson_dir": "./raw/geojson/",
+    "topojson_dir": "./raw/topojson/",
     "urlbase": "http://naciscdn.org/naturalearth/",
     "src_prefix": "ne_",
     "resolutions": [

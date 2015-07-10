@@ -37,13 +37,13 @@ common.makeBar = function(str, components) {
 };
 
 // get list of topojsons to write
-// (to update an existing topojson, delete it first)
+// (to update an existing topojson, delete it first with `make reset`)
 common.getToposToWrite = function(config) {
     var toposToWrite = [];
 
     config.resolutions.forEach(function(r) {
         config.scopes.forEach(function(s) {
-            var path = config.out_dir + common.out(r, s.name);
+            var path = config.topojson_dir + common.out(r, s.name);
             if (!fs.existsSync(path)) {
                 toposToWrite.push({r: r, s: s});
             }

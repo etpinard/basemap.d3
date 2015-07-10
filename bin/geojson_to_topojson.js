@@ -34,7 +34,7 @@ function main(err, configFile) {
         );
 
         config.vectors.forEach(function(v) {
-            var path = config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+            var path = config.geojson_dir + common.tn(r, s.name, v.name, 'geo.json'),
                 d = fs.readFileSync(path, 'utf8'),
                 collection = JSON.parse(d);
 
@@ -50,7 +50,7 @@ function main(err, configFile) {
             'property-transform': propertyTransform
          });
 
-        var outPath = config.out_dir + common.out(r, s.name);
+        var outPath = config.topojson_dir + common.out(r, s.name);
 
         fs.writeFile(outPath, JSON.stringify(topology), function(err){
             if(!err) barWrite.tick();

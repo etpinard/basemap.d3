@@ -91,7 +91,7 @@ function main(err, configFile) {
                 cmd = [
                     "ogr2ogr -f GeoJSON",
                     expr,
-                    config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+                    config.geojson_dir + common.tn(r, s.name, v.name, 'geo.json'),
                     config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp')
                 ].join(' ');
 
@@ -105,7 +105,7 @@ function main(err, configFile) {
                     config.wget_dir + common.tn(r, s.name, specs.src, 'shp'),
                     "-filter remove-empty",
                     "-o",
-                    config.wget_dir + common.tn(r, s.name, v.name, 'geo.json')
+                    config.geojson_dir + common.tn(r, s.name, v.name, 'geo.json')
                ].join(' ');
             }
 

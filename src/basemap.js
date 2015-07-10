@@ -578,7 +578,7 @@ Basemap.hasScatterText = function(trace) {
 
 Basemap.makeCalcdata = function makeCalcdata(gd) {
     var fullData = gd._fullData,
-        cd = new Array(fullData.length),
+        cd = [],
         cdi;
 
     function arrOrNum(x, i) {
@@ -596,7 +596,7 @@ Basemap.makeCalcdata = function makeCalcdata(gd) {
 
         return {
             features: topojson.feature(topo, obj).features,
-            ids: obj.properties.ids
+            ids: []  // TODO update this with country-name_to_iso3 json
         };
     }
 
@@ -622,7 +622,7 @@ Basemap.makeCalcdata = function makeCalcdata(gd) {
             getLonLat = function(trace, j) {
                 indexOfId = ids.indexOf(trace.loc[j]);
                 if (indexOfId===-1) return;
-                return features[indexOfId].properties.centroid;
+                return features[indexOfId].ct;
             };
         }
         else {
@@ -683,8 +683,10 @@ Basemap.makeCalcdata = function makeCalcdata(gd) {
         if (Basemap.isScatter(trace)) cdi = calcScatter(trace);
         if (Basemap.isChoropleth(trace)) cdi = calcChoropleth(trace);
 
+        if(!cdi[0]) continue;
+
         cdi[0].trace = trace;
-        cd[i] = cdi;
+        cd.push(cdi);
     }
 
     gd.calcdata = cd;
@@ -1229,7 +1231,7 @@ Basemap.plot = function plot(gd) {
     Basemap.makeProjection(gd);
     Basemap.makePath();
 
-    var topojsonPath = "../raw/" + gd._fullLayout.map._topojson + ".json";
+    var topojsonPath = "../raw/topojson/" + gd._fullLayout.map._topojson + ".json";
 
     d3.json(topojsonPath, function(error, topo) {
 

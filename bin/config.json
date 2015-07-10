@@ -47,14 +47,14 @@
             "type": "cultural",
             "src": "admin_0_countries",
             "name": "countries",
-            "ids": ["iso_a3"],
+            "ids": "iso_a3",
             "scopeWith": "bounds"
         },
         {
             "type": "cultural",
             "src": "admin_1_states_provinces",
             "name": "subunits",
-            "ids": ["postal"],
+            "ids": "postal",
             "scopeWith": "src"
         }
     ],

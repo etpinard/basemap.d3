@@ -63,9 +63,7 @@ function main(err, configFile) {
 function formatProperties(collection, v) {
     var features = collection.features,
         N = features.length,
-        ids = new Array(N),
         feature,
-        properties,
         id;
 
     function getCentroid(feature){
@@ -112,19 +110,11 @@ function formatProperties(collection, v) {
          if (v.ids) {
             // TODO generalize for ids.length > 1
             // TODO handle -99 ids
-            id = feature.properties[v.ids[0]];
+            id = feature.properties[v.ids];
 
-            ids[i] = id;
             feature.id = id;
-
-            feature.properties = {
-                centroid: getCentroid(feature)
-            };
+            feature.ct = getCentroid(feature);
+            delete feature.properties;
          }
-    }
-
-    if (v.ids) {
-        collection.properties = {};
-        collection.properties.ids = ids;
     }
 }

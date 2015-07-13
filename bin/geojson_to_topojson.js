@@ -107,14 +107,15 @@ function formatProperties(collection, v) {
         feature = features[i];
 
          if(v.ids) {
-            // TODO generalize for ids.length > 1
-            // TODO handle -99 ids
             id = feature.properties[v.ids];
 
-            feature.id = id;
-            feature.ct = getCentroid(feature);
-            delete feature.properties;
+            if(id !== "-99") {
+                feature.id = id;
+                feature.ct = getCentroid(feature);
+            }
          }
+
+        delete feature.properties;
     }
 }
 

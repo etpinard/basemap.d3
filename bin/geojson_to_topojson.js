@@ -69,7 +69,8 @@ function formatProperties(collection, v) {
         var geometry = feature.geometry;
 
         function getOne(polygon) {
-            return gju.centroid(polygon).coordinates;
+            var coords = gju.centroid(polygon).coordinates;
+            return [ +coords[0].toFixed(2), +coords[1].toFixed(2) ];
         }
 
         if(geometry.type==='MultiPolygon') {

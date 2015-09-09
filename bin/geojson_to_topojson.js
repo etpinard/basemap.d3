@@ -110,22 +110,38 @@ function formatProperties(collection, v) {
          if(v.ids) {
             id = feature.properties[v.ids];
 
-            if(id !== "-99") {
+            if(id !== '-99') {
                 feature.id = id;
-                feature.ct = getCentroid(feature);
+                feature.properties.ct = getCentroid(feature);
             }
          }
-
-        delete feature.properties;
     }
 }
 
 function pruneProperties(topology) {
+    var propsToKeep = ['ct'];
+
     var objects = topology.objects;
 
     Object.keys(objects).forEach(function(objectName) {
         objects[objectName].geometries.forEach(function(geometry) {
-            delete geometry.properties;
+            var properties = geometry.properties,
+                newProperties = {};
+
+            if(properties === undefined) return;
+
+            propsToKeep.forEach(function(prop) {
+                if(properties[prop] !== undefined) {
+                    newProperties[prop] = properties[prop];
+                }
+            });
+
+            if(Object.keys(newProperties).length) {
+                geometry.properties = newProperties;
+            }
+            else {
+                delete geometry.properties;
+            }
         });
     });
 }

@@ -2,14 +2,14 @@ var fs = require('fs'),
     exec = require('child_process').exec;
 
 var common = require('./common');
-var mapshaper = "./node_modules/mapshaper/bin/mapshaper";
+var mapshaper = './node_modules/mapshaper/bin/mapshaper';
 
 var DEBUG = false;  // logs commands if true
 
 fs.readFile('./bin/config.json', 'utf8', main);
 
 function main(err, configFile) {
-    if (err) throw err;
+    if(err) throw err;
 
     var config = JSON.parse(configFile);
     var toposToWrite = common.getToposToWrite(config);
@@ -54,7 +54,7 @@ function main(err, configFile) {
             config.wget_dir + common.tn(r, s.name, specs.src, 'tmp.shp')
        ].join(' ');
 
-       if (DEBUG) console.log(cmd);
+       if(DEBUG) console.log(cmd);
        return cmd;
     }
 
@@ -69,9 +69,9 @@ function main(err, configFile) {
             var cmd,
                 expr;
 
-            if (program==='ogr2ogr') {
+            if(program==='ogr2ogr') {
 
-                if (opt==='where') {
+                if(opt==='where') {
                     expr = [
                         '-where ',
                         "\"", specs.key, " IN ",
@@ -80,25 +80,23 @@ function main(err, configFile) {
                         specs.bounds.join(' ')
                     ].join('');
                 }
-                else if (opt==='clipsrc') {
+                else if(opt==='clipsrc') {
                     expr = [
                         '-clipsrc ',
                         specs.bounds.join(' ')
                     ].join('');
                 }
-                else {
-                    expr = '';
-                }
+                else  expr = '';
 
                 cmd = [
                     "ogr2ogr -f GeoJSON",
                     expr,
-                    config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+                    config.geojson_dir + common.tn(r, s.name, v.name, 'geo.json'),
                     config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp')
                 ].join(' ');
 
             }
-            else if (program==='mapshaper') {
+            else if(program==='mapshaper') {
                 cmd = [
                     mapshaper,
                     config.wget_dir + config.src_prefix + common.bn(r, v.src, 'shp'),
@@ -107,34 +105,32 @@ function main(err, configFile) {
                     config.wget_dir + common.tn(r, s.name, specs.src, 'shp'),
                     "-filter remove-empty",
                     "-o",
-                    config.wget_dir + common.tn(r, s.name, v.name, 'geo.json')
+                    config.geojson_dir + common.tn(r, s.name, v.name, 'geo.json')
                ].join(' ');
             }
 
             return cmd;
         }
 
-        if (clip && specs && specs.src!==v.name) {
-            if (v.src===specs.src) {
+        if(clip && specs && specs.src!==v.name) {
+            if(v.src===specs.src) {
                 cmd = getCmd('ogr2ogr', 'where');
             }
-            else if (s.name==='usa' && v.name==='rivers') {
+            else if(s.name==='usa' && v.name==='rivers') {
                 // for 'usa' scope,
                 // clip rivers with base shp instead of bounds
                 cmd = getCmd('mapshaper');
             }
-            else if (v.scopeWith==='src') {
+            else if(v.scopeWith==='src') {
                 cmd = getCmd('mapshaper');
             }
-            else if (v.scopeWith==='bounds') {
+            else if(v.scopeWith==='bounds') {
                 cmd = getCmd('ogr2ogr', 'clipsrc');
             }
         }
-        else {
-            cmd = getCmd('ogr2ogr', false);
-        }
+        else cmd = getCmd('ogr2ogr', false);
 
-        if (DEBUG) console.log(cmd);
+        if(DEBUG) console.log(cmd);
         return cmd;
     }
 
@@ -150,9 +146,7 @@ function main(err, configFile) {
         var r = topo.r,
             s = topo.s;
 
-        if (s.specs===false) {
-            vectorLoop(r, s, false);
-        }
+        if(s.specs===false) vectorLoop(r, s, false);
         else {
             exec(scopeBaseShapefile(r, s), function() {
                 vectorLoop(r, s, true);

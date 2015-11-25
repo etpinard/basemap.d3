@@ -35,7 +35,7 @@ npm install http-server -g
 
 - Boot up server
 ```bash
-./server up
+http-server -p 9999
 
 ```
 

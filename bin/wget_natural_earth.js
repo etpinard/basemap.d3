@@ -7,11 +7,13 @@ var common = require('./common');
 fs.readFile('./bin/config.json', 'utf8', main);
 
 function main(err, configFile) {
-    if (err) throw err;
+    if(err) throw err;
 
     var config = JSON.parse(configFile);
 
-    if (!fs.existsSync(config.wget_dir)) fs.mkdirSync(config.wget_dir);
+    if(!fs.existsSync(config.wget_dir)) fs.mkdirSync(config.wget_dir);
+    if(!fs.existsSync(config.geojson_dir)) fs.mkdirSync(config.geojson_dir);
+    if(!fs.existsSync(config.topojson_dir)) fs.mkdirSync(config.topojson_dir);
 
     var bar = common.makeBar(
         'Downloading shapefiles: [:bar] :current/:total',
@@ -20,9 +22,9 @@ function main(err, configFile) {
 
     function unzip(r, v) {
         return [
-            "unzip",
+            'unzip',
             config.wget_dir + config.src_prefix + common.bn(r, v.src, 'zip'),
-            "-d", config.wget_dir
+            '-d', config.wget_dir
         ].join(' ');
     }
 

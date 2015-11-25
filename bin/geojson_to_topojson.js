@@ -7,7 +7,7 @@ var common = require('./common');
 fs.readFile('./bin/config.json', 'utf8', main);
 
 function main(err, configFile) {
-    if (err) throw err;
+    if(err) throw err;
 
     var config = JSON.parse(configFile);
     var toposToWrite = common.getToposToWrite(config);
@@ -17,10 +17,7 @@ function main(err, configFile) {
         [toposToWrite]
     );
 
-    // map all geojson properties to topojson
-    function propertyTransform(feature) {
-        return feature.properties;
-    }
+    function propertyTransform(feature) { return feature.properties; }
 
     toposToWrite.forEach(function(topo) {
         var r = topo.r,
@@ -34,7 +31,7 @@ function main(err, configFile) {
         );
 
         config.vectors.forEach(function(v) {
-            var path = config.wget_dir + common.tn(r, s.name, v.name, 'geo.json'),
+            var path = config.geojson_dir + common.tn(r, s.name, v.name, 'geo.json'),
                 d = fs.readFileSync(path, 'utf8'),
                 collection = JSON.parse(d);
 
@@ -50,10 +47,12 @@ function main(err, configFile) {
             'property-transform': propertyTransform
          });
 
-        var outPath = config.out_dir + common.out(r, s.name);
+        pruneProperties(topology);
+
+        var outPath = config.topojson_dir + common.out(r, s.name);
 
         fs.writeFile(outPath, JSON.stringify(topology), function(err){
-            if (!err) barWrite.tick();
+            if(!err) barWrite.tick();
         });
 
     });
@@ -63,19 +62,18 @@ function main(err, configFile) {
 function formatProperties(collection, v) {
     var features = collection.features,
         N = features.length,
-        ids = new Array(N),
         feature,
-        properties,
         id;
 
     function getCentroid(feature){
         var geometry = feature.geometry;
 
         function getOne(polygon) {
-            return gju.centroid(polygon).coordinates;
+            var coords = gju.centroid(polygon).coordinates;
+            return [ +coords[0].toFixed(2), +coords[1].toFixed(2) ];
         }
 
-        if (geometry.type==='MultiPolygon') {
+        if(geometry.type==='MultiPolygon') {
             var coordinates = geometry.coordinates,
                 N = coordinates.length,
                 centroids = new Array(N),
@@ -87,9 +85,9 @@ function formatProperties(collection, v) {
             // pick the one associated with the
             // largest area.
 
-            for (var i = 0; i < N; i++) {
+            for(var i = 0; i < N; i++) {
                 polygon = {
-                    type: "Polygon",
+                    type: 'Polygon',
                     coordinates: coordinates[i]
                 };
                 centroids[i] = getOne(polygon);
@@ -100,31 +98,50 @@ function formatProperties(collection, v) {
             indexOfMax = areas.indexOf(Math.min.apply(Math, areas));
             return centroids[indexOfMax];
         }
-        else if (geometry.type==='Polygon') {
+        else if(geometry.type==='Polygon') {
             return getOne(geometry);
         }
         else return;
     }
 
-    for (var i = 0; i < N; i++) {
+    for(var i = 0; i < N; i++) {
         feature = features[i];
 
-         if (v.ids) {
-            // TODO generalize for ids.length > 1
-            // TODO handle -99 ids
-            id = feature.properties[v.ids[0]];
+         if(v.ids) {
+            id = feature.properties[v.ids];
 
-            ids[i] = id;
-            feature.id = id;
-
-            feature.properties = {
-                centroid: getCentroid(feature)
-            };
+            if(id !== '-99') {
+                feature.id = id;
+                feature.properties.ct = getCentroid(feature);
+            }
          }
     }
+}
 
-    if (v.ids) {
-        collection.properties = {};
-        collection.properties.ids = ids;
-    }
+function pruneProperties(topology) {
+    var propsToKeep = ['ct'];
+
+    var objects = topology.objects;
+
+    Object.keys(objects).forEach(function(objectName) {
+        objects[objectName].geometries.forEach(function(geometry) {
+            var properties = geometry.properties,
+                newProperties = {};
+
+            if(properties === undefined) return;
+
+            propsToKeep.forEach(function(prop) {
+                if(properties[prop] !== undefined) {
+                    newProperties[prop] = properties[prop];
+                }
+            });
+
+            if(Object.keys(newProperties).length) {
+                geometry.properties = newProperties;
+            }
+            else {
+                delete geometry.properties;
+            }
+        });
+    });
 }

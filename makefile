@@ -6,7 +6,7 @@ wget:
 	node ./bin/wget_natural_earth.js
 
 shp_to_geojson:
-	rm -rf raw/natural_earth/*.geo.json
+	rm -f raw/geojson/*
 	node ./bin/shp_to_geojson.js
 
 geojson_to_topojson:
@@ -15,5 +15,8 @@ geojson_to_topojson:
 sleep:
 	@sleep 3
 
+reset:
+	rm -f raw/topojson/*.json
+
 clean:
-	rm -rf raw/natural_earth
+	rm -f raw/natural_earth/*
